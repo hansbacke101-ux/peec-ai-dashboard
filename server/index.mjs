@@ -1,7 +1,16 @@
+import { createOpenAI } from "@ai-sdk/openai";
+import {
+  BuiltInAgent,
+  CopilotRuntime,
+  defineTool,
+} from "@copilotkit/runtime/v2";
+import { createCopilotEndpointSingleRouteExpress } from
+  "@copilotkit/runtime/v2/express";
 import dotenv from "dotenv";
 import express from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { z } from "zod";
 import {
   callPeecMcpTool,
   finishPeecMcpAuth,
@@ -205,6 +214,63 @@ function compactToolResult(result) {
   };
 }
 
+function getOpenAIBaseUrl() {
+  return aiResponsesUrl?.replace(/\/responses\/?$/, "");
+}
+
+function createCopilotLanguageModel() {
+  const baseURL = getOpenAIBaseUrl();
+
+  if (!aiApiKey || !baseURL) {
+    return null;
+  }
+
+  const provider = createOpenAI({
+    apiKey: aiApiKey,
+    baseURL,
+    headers: {
+      "api-key": aiApiKey,
+    },
+  });
+
+  return provider.chat(aiModel);
+}
+
+const peecRuntimeTools = [
+  defineTool({
+    name: "listPeecReadTools",
+    description: "List read-only Peec MCP tools available to the dashboard.",
+    parameters: z.object({}),
+    execute: async () => {
+      const tools = await listPeecMcpTools();
+
+      return tools.map((tool) => ({
+        description: tool.description,
+        name: tool.name,
+        parameters: sanitizeSchema(tool.inputSchema),
+      }));
+    },
+  }),
+  defineTool({
+    name: "callPeecReadTool",
+    description:
+      "Call a read-only Peec MCP tool. Pass arguments as a JSON string.",
+    parameters: z.object({
+      argsJson: z
+        .string()
+        .optional()
+        .describe("JSON object string with the tool arguments."),
+      toolName: z.string().describe("The exact Peec MCP tool name."),
+    }),
+    execute: async ({ toolName, argsJson = "{}" }) => {
+      const args = JSON.parse(argsJson || "{}");
+      const result = await callPeecMcpTool(toolName, args);
+
+      return compactToolResult(result);
+    },
+  }),
+];
+
 async function aiGenerateWithPeecTools(prompt) {
   const mcpTools = await listPeecMcpTools();
   const tools = mcpTools.map(toAiTool);
@@ -311,6 +377,35 @@ async function getConfiguredProject() {
     };
   }
 }
+
+const copilotLanguageModel = createCopilotLanguageModel();
+const copilotRuntime = copilotLanguageModel
+  ? new CopilotRuntime({
+      agents: {
+        default: new BuiltInAgent({
+          maxSteps: 5,
+          model: copilotLanguageModel,
+          prompt: [
+            "You are the GoGeo dashboard copilot, powered by Peec AI.",
+            "Use frontend tools for UI changes and Peec tools for data lookup.",
+            "Keep answers concise, practical, and grounded in dashboard state.",
+          ].join(" "),
+          tools: peecRuntimeTools,
+        }),
+      },
+    })
+  : null;
+const copilotRouter = copilotRuntime
+  ? createCopilotEndpointSingleRouteExpress({
+      basePath: "/api/copilotkit",
+      hooks: {
+        onError: ({ error, route }) => {
+          console.error("CopilotKit runtime error", route, error);
+        },
+      },
+      runtime: copilotRuntime,
+    })
+  : null;
 
 app.get("/api/health", (_request, response) => {
   response.json({
@@ -443,7 +538,7 @@ app.post("/api/ai/report-summary", async (request, response) => {
     "You are an AI search analytics strategist.",
     `Project: ${projectName ?? "Peec project"}.`,
     `Date range: ${startDate} to ${endDate}.`,
-    "Summarize this Peec AI brand report in 4 concise bullets.",
+    "Summarize this GoGeo brand report in 4 concise bullets.",
     "Include the strongest competitor, main risk, and one next action.",
     JSON.stringify(compactReport, null, 2),
   ].join("\n");
@@ -481,7 +576,7 @@ app.post("/api/chat", async (request, response) => {
       .join("\n");
 
     const prompt = [
-      "You are the Peec AI dashboard assistant.",
+      "You are the GoGeo dashboard assistant, powered by Peec AI.",
       "Use the supplied Peec AI context when answering.",
       "If the context is insufficient, say what data is missing.",
       "Keep answers concise and actionable.",
@@ -504,6 +599,18 @@ app.post("/api/chat", async (request, response) => {
     response.status(502).json({ message: error.message });
   }
 });
+
+if (copilotRouter) {
+  app.use(copilotRouter);
+} else {
+  app.use("/api/copilotkit", (_request, response) => {
+    response.status(500).json({
+      message:
+        "Missing Azure OpenAI config. Add AZURE_OPENAI_API_KEY and " +
+        "AZURE_OPENAI_RESPONSES_URL to .env.local.",
+    });
+  });
+}
 
 app.use("/api", (_request, response) => {
   response.status(404).json({ message: "API route not found." });

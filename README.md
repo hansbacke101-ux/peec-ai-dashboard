@@ -1,6 +1,7 @@
-# Peec AI Dashboard
+# GoGeo
 
-A local React and Express dashboard for exploring Peec AI search metrics.
+A local React and Express dashboard powered by Peec AI for exploring search
+metrics.
 It loads Peec project data through a server-side proxy so API keys stay out
 of the browser bundle.
 

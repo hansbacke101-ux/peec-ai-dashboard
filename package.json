@@ -2,7 +2,7 @@
   "name": "peec-ai-dashboard",
   "version": "0.1.0",
   "private": true,
-  "description": "A React and Express dashboard for Peec AI search metrics.",
+  "description": "GoGeo, a React and Express dashboard powered by Peec AI.",
   "type": "module",
   "scripts": {
     "dev": "concurrently \"vite\" \"node --watch-path=server/index.mjs server/index.mjs\"",
@@ -12,11 +12,16 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^3.0.53",
+    "@copilotkit/react-core": "^1.56.3",
+    "@copilotkit/react-ui": "^1.56.3",
+    "@copilotkit/runtime": "^1.56.3",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "react": "^19.2.5",
-    "react-dom": "^19.2.5"
+    "react-dom": "^19.2.5",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/react": "^19.2.14",

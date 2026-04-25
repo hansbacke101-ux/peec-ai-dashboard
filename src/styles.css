@@ -164,6 +164,12 @@ p {
   padding: 24px;
 }
 
+.companyNavCard,
+.projectCard,
+.scrollTarget {
+  scroll-margin-top: 24px;
+}
+
 .cardHeader {
   align-items: flex-start;
   display: flex;
@@ -195,6 +201,24 @@ p {
   background: #fff0f0;
   color: #b3261e;
   margin-bottom: 20px;
+}
+
+.copilotNotice {
+  align-items: center;
+  background: #eef8f3;
+  color: #1f6b45;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.copilotNotice button {
+  background: #ffffff;
+  border: 1px solid #ccebdc;
+  border-radius: 999px;
+  color: #1f6b45;
+  font-weight: 900;
+  padding: 7px 12px;
 }
 
 select {
@@ -309,6 +333,46 @@ select {
   display: grid;
   gap: 18px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.adaptivePanel {
+  display: grid;
+  gap: 18px;
+}
+
+.focusGrid,
+.comparisonGrid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.comparisonCard {
+  background: #ffffff;
+  border: 1px solid #e8edf8;
+  border-radius: 22px;
+  padding: 20px;
+}
+
+.comparisonCard dl {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+
+.comparisonCard dl > div {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.comparisonCard dt {
+  color: #69758c;
+}
+
+.comparisonCard dd {
+  font-weight: 900;
+  margin: 0;
 }
 
 .chartPanel {
@@ -958,9 +1022,10 @@ dd {
   display: grid;
   gap: 0;
   grid-template-columns: minmax(0, 1fr) auto;
-  margin: 0 auto;
-  max-width: 1600px;
+  margin: 0;
+  max-width: none;
   min-height: 100vh;
+  width: 100%;
 }
 
 .appFrame .shell {
@@ -1049,6 +1114,83 @@ dd {
   opacity: 1;
   padding: 24px;
   transform: none;
+}
+
+.copilotChat {
+  height: 100%;
+}
+
+.copilotChat textarea,
+.copilotChat input {
+  font: inherit;
+}
+
+.copilotChat .copilotKitInputContainer {
+  border-top: 1px solid #eef1f7;
+  padding-top: 18px;
+}
+
+.copilotChat .copilotKitMessagesFooter {
+  margin-top: 18px;
+}
+
+.copilotChat .copilotKitInput {
+  align-content: end;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.copilotChat .copilotKitInput > textarea {
+  align-self: end;
+  grid-column: 1;
+  min-height: 24px;
+}
+
+.copilotChat .copilotKitInput > textarea:placeholder-shown {
+  height: 24px !important;
+}
+
+.copilotChat .copilotKitInputControls {
+  align-self: end;
+  grid-column: 2;
+}
+
+/* Keep CopilotKit's auxiliary notices away from the right-side chat rail. */
+.usage-banner,
+.copilotKitDevConsole {
+  bottom: 20px !important;
+  left: 20px !important;
+  right: auto !important;
+  top: auto !important;
+  transform: none !important;
+}
+
+.usage-banner {
+  width: min(420px, calc(100vw - 40px)) !important;
+}
+
+.copilotKitDevConsole .copilotKitVersionInfo {
+  bottom: 0 !important;
+  left: 0 !important;
+  right: auto !important;
+  top: auto !important;
+}
+
+button[title*="Inspector"] {
+  bottom: 20px !important;
+  left: 20px !important;
+  right: auto !important;
+  top: auto !important;
+  transform: none !important;
+}
+
+cpk-web-inspector {
+  bottom: 16px !important;
+  left: 16px !important;
+  right: auto !important;
+  top: auto !important;
+  transform: none !important;
 }
 
 .chatDock.isCollapsed .chatPanel {
