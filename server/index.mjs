@@ -242,16 +242,20 @@ function createCopilotLanguageModel() {
 }
 
 /**
- * The Vercel AI SDK only treats a tool result as present when
- * `role: "tool"` messages use `content: [{ type: "tool-result", ... }]`
- * (see `convertToLanguageModelPrompt` in `ai` package). A string
- * `content` or a bare `toolCallId` on the message does not clear
- * pending tool calls.
+ * CopilotKit's `convertMessagesToVercelAISDKMessages` (BuiltInAgent) only
+ * converts AG-UI tool rows: `{ role: "tool", toolCallId, content: string }`
+ * into Vercel `tool-result` parts. Rows that already use Vercel
+ * `content: [{ type: "tool-result", ... }]` are not handled and are dropped
+ * from the list passed to the AI SDK—so the guard must inject the AG-UI
+ * shape, not raw ModelMessage objects.
  */
 function collectExistingToolResultIds(messages) {
   const withResult = new Set();
 
   for (const m of messages) {
+    if (m?.role === "tool" && typeof m.toolCallId === "string") {
+      withResult.add(m.toolCallId);
+    }
     if (m?.role === "tool" && Array.isArray(m.content)) {
       for (const part of m.content) {
         if (part?.type === "tool-result" && part.toolCallId) {
@@ -318,8 +322,9 @@ function listAssistantToolCalls(assistantMessage) {
  * When the client runs CopilotKit frontend tools, the next HTTP request can
  * include assistant tool-calls without matching `tool-result` content parts.
  * `streamText` / `convertToLanguageModelPrompt` then throws
- * `AI_MissingToolResultsError`. Insert minimal valid tool messages so the run
- * can continue.
+ * `AI_MissingToolResultsError`. Insert minimal AG-UI `tool` messages so
+ * `convertMessagesToVercelAISDKMessages` can turn them into `tool-result`
+ * parts.
  */
 function ensureAgUiToolResultsForCopilot(messages) {
   if (!Array.isArray(messages)) {
@@ -334,39 +339,29 @@ function ensureAgUiToolResultsForCopilot(messages) {
     out.push(msg);
 
     for (const call of listAssistantToolCalls(msg)) {
-      const { id, input, toolName } = call;
+      const { id } = call;
       if (!id || withResult.has(id)) {
         continue;
       }
       withResult.add(id);
       injected.push(id);
       out.push({
-        content: [
-          {
-            output: {
-              type: "json",
-              value: {
-                input,
-                message:
-                  "Client tool result was not in server history; " +
-                  "synthetic result so the agent run can continue.",
-                ok: true,
-                placeholder: true,
-              },
-            },
-            toolCallId: id,
-            type: "tool-result",
-            toolName,
-          },
-        ],
+        content: JSON.stringify({
+          message:
+            "Client tool result was not in server history; " +
+            "synthetic result so the agent run can continue.",
+          ok: true,
+          placeholder: true,
+        }),
         role: "tool",
+        toolCallId: id,
       });
     }
   }
 
   if (injected.length > 0) {
     console.warn(
-      "CopilotKit tool-result guard injected ModelMessage tool results:",
+      "CopilotKit tool-result guard injected AG-UI tool results:",
       injected,
     );
   }
