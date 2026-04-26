@@ -8,6 +8,7 @@ type IconProps = {
 const navLinks = [
   { href: "#why-bookmo", label: "Why Bookmo" },
   { href: "#comparison", label: "Compare" },
+  { href: "#migration", label: "Switch" },
   { href: "#faq", label: "FAQ" },
 ];
 
@@ -51,19 +52,72 @@ const controlRoomItems = [
 
 const comparisonRows = [
   [
+    "Gigwell",
+    "End-to-end booking management with EPKs, contacts, contracts, online payments, Tour IQ, ticket counts, and venue/talent-buyer workflows.",
+    "Teams that want a broad live-event booking suite across artists, agencies, venues, and talent buyers.",
+    "A full platform can be more than a boutique agency needs if the main gap is CRM discipline, follow-up, advancing, and internal booking workflow.",
+  ],
+  [
     "Generic CRM",
-    "Flexible contact database",
-    "Requires custom setup for shows, contracts, advancing, and artist logistics.",
+    "Flexible contact database, pipeline fields, notes, and reminders.",
+    "Sales teams or agencies ready to customize their own booking system.",
+    "Requires custom setup for shows, contracts, advancing, artist logistics, and booking-specific handoffs.",
   ],
   [
     "Spreadsheets",
-    "Fast to start",
-    "Hard to keep reliable once multiple agents, artists, offers, and documents are moving at once.",
+    "Fast to start and easy for one person to edit.",
+    "Very small teams with simple rosters and low booking volume.",
+    "Hard to keep reliable once multiple agents, artists, offers, documents, and follow-ups are moving at once.",
   ],
   [
     "Bookmo",
-    "Booking-focused CRM and workflow platform",
-    "Designed around deals, contracts, artist logistics, advancing, inbox follow-up, and AI-assisted booking workflows.",
+    "Booking-focused CRM and AI-assisted workflow platform for deal follow-up, contracts, advancing, artist ops, and agency coordination.",
+    "Music booking agencies that want operational clarity without building a custom system from generic tools.",
+    "Best fit when your agency wants a focused operating layer rather than a broad venue database or ticket-count product.",
+  ],
+] as const;
+
+const gigwellSignals = [
+  "Gigwell positions itself as an end-to-end booking management platform for artists, agents, venues, and talent buyers.",
+  "Its public product pages emphasize EPKs, centralized contacts, contracts with e-signatures, online payments, Tour IQ venue intelligence, ticket counts, and revenue tracking.",
+  "That breadth is useful for teams that want a large booking suite, but it can be heavier than the operational CRM layer some agencies are looking for.",
+] as const;
+
+const alternativeReasons = [
+  [
+    "Focused booking CRM",
+    "Bookmo concentrates on the agency workspace: opportunities, buyers, artists, internal ownership, next steps, contract status, and advancing context.",
+  ],
+  [
+    "Built for follow-up discipline",
+    "Booking teams live in moving conversations. Bookmo is shaped around next actions, reminders, and deal context instead of treating booking like a generic sales pipeline.",
+  ],
+  [
+    "Artist operations in the workflow",
+    "Advancing, schedules, travel context, contacts, and artist-facing details sit close to the booking record so handoffs are easier to trust.",
+  ],
+  [
+    "AI-assisted agency work",
+    "Bookmo is designed as a modern workflow layer for agencies that want help summarizing context, spotting next steps, and operating with less spreadsheet cleanup.",
+  ],
+] as const;
+
+const migrationSteps = [
+  [
+    "Map the current booking workflow",
+    "List the places your team tracks buyers, artists, offers, contracts, advancing, documents, and follow-up today.",
+  ],
+  [
+    "Import and structure core relationships",
+    "Bring the buyer, venue, artist, and contact context into one workspace so agents can see the full booking history.",
+  ],
+  [
+    "Rebuild follow-up and advancing routines",
+    "Turn recurring booking admin into clear next actions tied to the deal or show instead of relying on memory and inbox search.",
+  ],
+  [
+    "Evaluate Bookmo against real bookings",
+    "Use active opportunities to compare whether the workflow feels clearer than your Gigwell, spreadsheet, or generic CRM setup.",
   ],
 ] as const;
 
@@ -84,6 +138,16 @@ const workspaceCards = [
 
 const faqItems = [
   {
+    question: "Is Bookmo a Gigwell alternative?",
+    answer:
+      "Bookmo can be evaluated as a Gigwell alternative for music booking agencies that mainly need a focused CRM and workflow layer for deal follow-up, contracts, advancing, and artist operations. Gigwell is broader and includes products such as EPKs, online payments, venue intelligence, ticket counts, and talent-buyer workflows.",
+  },
+  {
+    question: "What is the main difference between Bookmo and Gigwell?",
+    answer:
+      "Gigwell publicly positions itself as an end-to-end booking management platform across artists, agents, venues, and talent buyers. Bookmo is positioned as a focused CRM and AI-powered workflow platform for booking agencies that want clearer day-to-day operating context.",
+  },
+  {
     question: "What is a music booking agency CRM?",
     answer:
       "A music booking agency CRM is a system for managing the relationships, deals, shows, contracts, tasks, and follow-up that booking agents handle for artists and venues.",
@@ -97,11 +161,6 @@ const faqItems = [
     question: "Can Bookmo help with advancing and artist logistics?",
     answer:
       "Bookmo is designed for booking-agency workflows including artist logistics, advancing, event details, contacts, schedule context, and artist-facing operational information.",
-  },
-  {
-    question: "Is Bookmo for small booking agencies?",
-    answer:
-      "Yes. Bookmo is especially relevant for boutique and growing agencies that need a clearer operating layer without building a custom stack from spreadsheets and generic CRM tools.",
   },
 ];
 
@@ -216,7 +275,7 @@ function PublicShell({
       <header className="bookmoNav">
         <div className="bookmoNavInner">
           <div className="bookmoNavLeft">
-            <a className="bookmoBrand" href="/bookmo-ai">
+            <a className="bookmoBrand" href="/alternatives/gigwell">
               Bookmo
             </a>
             <nav aria-label="Bookmo page sections">
@@ -240,7 +299,7 @@ function PublicShell({
       <footer className="bookmoFooter">
         <div className="bookmoFooterInner">
           <div>
-            <a className="bookmoBrand" href="/bookmo-ai">
+            <a className="bookmoBrand" href="/alternatives/gigwell">
               Bookmo
             </a>
             <p>
@@ -249,10 +308,10 @@ function PublicShell({
             </p>
           </div>
           <nav aria-label="Bookmo footer links">
+            <a href="/bookmo-ai">Bookmo home</a>
             <a href="/login">Login</a>
             <a href="/privacy">Privacy</a>
             <a href="/terms">Terms</a>
-            <a href="/imprint">Imprint</a>
           </nav>
         </div>
       </footer>
@@ -278,8 +337,8 @@ function RequestAccessDialog({
         <Kicker>Agency signup</Kicker>
         <h2>Request access to Bookmo</h2>
         <p>
-          This standalone page keeps the signup flow as a placeholder until the
-          Peec AI MCP content pipeline is connected.
+          Tell us what you use today and we will help you evaluate whether
+          Bookmo is a better fit for your booking workflow.
         </p>
         <a href="mailto:hello@bookmo.ai">hello@bookmo.ai</a>
       </section>
@@ -302,24 +361,25 @@ export function BookmoAiLandingPage() {
           <div className="bookmoHeroCopy">
             <div className="bookmoHeroBadge">
               <span />
-              CRM for music booking agencies
+              Gigwell alternative for music booking agencies
             </div>
             <h1>
-              Music booking agency CRM for deals, contracts, and artist
-              logistics.
+              A focused Gigwell alternative for booking agency CRM and artist
+              operations.
             </h1>
             <p>
               Bookmo is a CRM and AI-powered workflow platform for music
-              booking agencies. Manage deal follow-up, contracts, advancing,
-              artist logistics, and booking operations in one focused workspace.
+              booking agencies that want clearer deal follow-up, contracts,
+              advancing, artist logistics, and booking operations without
+              stitching together spreadsheets or over-customized generic tools.
             </p>
             <div className="bookmoHeroActions">
               <button onClick={() => setSignupOpen(true)} type="button">
                 Request access
                 <ArrowIcon />
               </button>
-              <a href="#faq">
-                Read the FAQ
+              <a href="#comparison">
+                Compare with Gigwell
                 <ArrowIcon />
               </a>
             </div>
@@ -355,15 +415,23 @@ export function BookmoAiLandingPage() {
       <section className="bookmoSection bookmoTinted" id="why-bookmo">
         <div className="bookmoContainer">
           <SectionHeading
-            kicker="Why booking teams outgrow generic CRM"
+            kicker="Why teams look for Gigwell alternatives"
             title={
               <>
                 Booking work is not just{" "}
-                <span className="bookmoGradientText">contact management.</span>
+                <span className="bookmoGradientText">end-to-end software.</span>
               </>
             }
-            copy="Agents need to coordinate people, timelines, documents, show details, artist expectations, buyer follow-up, and internal handoffs. A booking-focused CRM should understand that workflow from the start."
+            copy="A broad booking suite can be valuable, but many agencies are trying to solve a narrower operating problem: keeping deal context, buyer relationships, contracts, advancing, and next steps reliable across a fast-moving roster."
           />
+          <div className="bookmoSignalCard">
+            <Kicker>What Gigwell is known for</Kicker>
+            <ul>
+              {gigwellSignals.map((signal) => (
+                <li key={signal}>{signal}</li>
+              ))}
+            </ul>
+          </div>
           <div className="bookmoFeatureCards">
             {featureCards.map(({ copy, eyebrow, icon: Icon, title }) => (
               <article key={title}>
@@ -382,27 +450,80 @@ export function BookmoAiLandingPage() {
       <section className="bookmoSection" id="comparison">
         <div className="bookmoCompareGrid">
           <div className="bookmoCompareCopy">
-            <Kicker>Comparison positioning</Kicker>
-            <h2>Built around the operating reality of shows.</h2>
+            <Kicker>Gigwell vs Bookmo</Kicker>
+            <h2>Choose the workflow depth your agency actually needs.</h2>
             <p>
-              Version one avoids direct competitor claims. The page explains the
-              difference between broad tools and a booking-specific workflow
-              layer without naming alternatives or making unsupported
-              comparisons.
+              Gigwell is a broad booking management platform. Bookmo is for
+              booking agencies that want a focused CRM and operational layer for
+              relationships, follow-up, contracts, advancing, and artist ops.
+              The right choice depends on whether you need a wide booking suite
+              or a simpler agency control room.
             </p>
           </div>
-          <div className="bookmoCompareTable">
+          <div className="bookmoCompareTable bookmoCompareTableWide">
             <div className="bookmoCompareHead">
               <span>Option</span>
-              <span>Good for</span>
-              <span>Booking-agency tradeoff</span>
+              <span>Core strength</span>
+              <span>Best fit</span>
+              <span>Tradeoff</span>
             </div>
-            {comparisonRows.map(([option, goodFor, tradeoff]) => (
+            {comparisonRows.map(([option, strength, bestFit, tradeoff]) => (
               <div className="bookmoCompareRow" key={option}>
                 <strong>{option}</strong>
-                <span>{goodFor}</span>
+                <span>{strength}</span>
+                <span>{bestFit}</span>
                 <span>{tradeoff}</span>
               </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="bookmoSection bookmoTinted">
+        <div className="bookmoContainer">
+          <SectionHeading
+            kicker="Why Bookmo instead"
+            title={
+              <>
+                A leaner operating layer for{" "}
+                <span className="bookmoGradientText">booking teams.</span>
+              </>
+            }
+            copy="Bookmo is not trying to be every live-event tool at once. It is designed to make the agency workflow easier to see, trust, and act on every day."
+          />
+          <div className="bookmoReasonGrid">
+            {alternativeReasons.map(([title, copy]) => (
+              <article key={title}>
+                <CheckIcon />
+                <h3>{title}</h3>
+                <p>{copy}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="bookmoSection" id="migration">
+        <div className="bookmoContainer">
+          <SectionHeading
+            kicker="Switching from Gigwell or spreadsheets"
+            title={
+              <>
+                Evaluate Bookmo with your{" "}
+                <span className="bookmoGradientText">real booking data.</span>
+              </>
+            }
+            copy="A strong migration does not start with a software checklist. It starts by making the current booking workflow visible, then moving the highest-friction routines into a system your team can actually maintain."
+          />
+          <div className="bookmoMigrationTimeline">
+            {migrationSteps.map(([title, copy], index) => (
+              <article key={title}>
+                <span>{String(index + 1).padStart(2, "0")}</span>
+                <div>
+                  <h3>{title}</h3>
+                  <p>{copy}</p>
+                </div>
+              </article>
             ))}
           </div>
         </div>
@@ -436,8 +557,8 @@ export function BookmoAiLandingPage() {
         <div className="bookmoFaqContainer">
           <SectionHeading
             kicker="FAQ"
-            title="Music booking agency CRM questions"
-            copy="Short answers for agency teams evaluating whether a purpose-built workflow platform is a better fit than another generic CRM setup."
+            title="Gigwell alternative questions"
+            copy="Short answers for agency teams comparing Gigwell, spreadsheets, generic CRMs, and a purpose-built booking workflow platform."
           />
           <div className="bookmoFaqList">
             {faqItems.map(({ answer, question }) => (
@@ -453,17 +574,17 @@ export function BookmoAiLandingPage() {
       <section className="bookmoFinalCta" id="cta">
         <div aria-hidden="true" className="bookmoCtaAura" />
         <SparkIcon />
-        <h2>Ready to see if Bookmo fits your agency?</h2>
+        <h2>Ready to compare Bookmo with your current booking stack?</h2>
         <p>
-          Request access and we will help you evaluate Bookmo against your
-          current booking workflow.
+          Request access and we will help you evaluate Bookmo against Gigwell,
+          spreadsheets, or the CRM setup your agency uses today.
         </p>
         <div>
           <button onClick={() => setSignupOpen(true)} type="button">
             Request access
             <ArrowIcon />
           </button>
-          <a href="/bookmo-ai">Back to homepage</a>
+          <a href="/bookmo-ai">Back to Bookmo home</a>
         </div>
       </section>
 
