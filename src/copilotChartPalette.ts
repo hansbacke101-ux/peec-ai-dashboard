@@ -1,11 +1,11 @@
-/** Shared sequence for pie / bar / line (matches bar-gradient palette). */
+/** Shared sequence for pie / bar / line (matches the GoGeo palette). */
 export const CHART_COLOR_SEQUENCE = [
-  "#5b67f1",
-  "#3b7cff",
-  "#49c8ff",
-  "#1ea672",
-  "#34d399",
-  "#f59e0b",
-  "#f472b6",
-  "#8b5cf6",
+  "#0d1b2d",
+  "#eca851",
+  "#545f6c",
+  "#f7d19c",
+  "#2f6255",
+  "#a86c2d",
+  "#c7c1b8",
+  "#4f5e73",
 ];
