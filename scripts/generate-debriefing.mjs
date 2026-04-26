@@ -99,6 +99,14 @@ async function main() {
   const link = `<li><a href="/debriefings/${stamp}/">${stamp} — PEEC intelligence debrief with highlights/action queue</a></li>`;
   const index = `<!doctype html><html><head><meta charset="utf-8"><title>PEEC Debriefings</title><style>body{font-family:Inter,system-ui;background:#0f172a;color:#f8fafc;padding:40px}a{color:#93c5fd}li{margin:12px 0}</style></head><body><h1>PEEC Debriefings</h1><ul>${link}${(existing.match(/<li>.*?<\/li>/gs)||[]).slice(0,24).join('')}</ul></body></html>`;
   fs.writeFileSync(indexPath, index);
+
+  const distDir = path.join(process.cwd(), 'dist', 'debriefings', stamp);
+  const distIndexPath = path.join(process.cwd(), 'dist', 'debriefings', 'index.html');
+  fs.mkdirSync(distDir, {recursive:true});
+  fs.copyFileSync(path.join(outDir, 'index.html'), path.join(distDir, 'index.html'));
+  fs.mkdirSync(path.dirname(distIndexPath), {recursive:true});
+  fs.copyFileSync(indexPath, distIndexPath);
+
   console.log(`Generated /debriefings/${stamp}/`);
 }
 

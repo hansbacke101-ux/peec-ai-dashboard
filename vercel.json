@@ -23,6 +23,10 @@
       "dest": "/assets/$1"
     },
     {
+      "src": "/debriefings/(.*)",
+      "dest": "/debriefings/$1"
+    },
+    {
       "src": "/(.*)",
       "dest": "/index.html"
     }
