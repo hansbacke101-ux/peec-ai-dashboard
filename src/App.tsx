@@ -1,10 +1,21 @@
 import {
   type CSSProperties,
+  useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
+import {
+  useCopilotAdditionalInstructions,
+  useCopilotReadable,
+  useFrontendTool,
+} from "@copilotkit/react-core";
+import { BookmoAiLandingPage } from "./BookmoAiLandingPage";
 import Chatbot from "./Chatbot";
+import { ChatPieChart } from "./ChatPieChart";
+import { CopilotLineChart } from "./CopilotLineChart";
+import { CopilotVerticalBarChart } from "./CopilotVerticalBarChart";
 
 type Project = {
   id: string;
@@ -44,6 +55,50 @@ type MetricConfig = {
   label: string;
   tone: string;
 };
+
+type DashboardViewMode = "company" | "comparison" | "metricFocus" | "overview";
+
+type SortDirection = "asc" | "desc";
+
+type CompanySort = {
+  direction: SortDirection;
+  metric: ChartMetric;
+};
+
+type ScrollTarget = "companyNav" | "mainView" | "projectCard";
+
+type MainChartPayload =
+  | {
+    kind: "line";
+    series: { label: string; values: number[] }[];
+    title?: string;
+    xLabels: string[];
+    yLabel?: string;
+  }
+  | { kind: "pie"; labels: string[]; title?: string; values: number[] }
+  | { kind: "vbar"; labels: string[]; title?: string; values: number[] };
+
+function errNonnegLabelValues(
+  labels: string[] | undefined,
+  values: number[] | undefined,
+) {
+  if (!labels?.length) {
+    return "At least one label is required.";
+  }
+  if (!values?.length) {
+    return "At least one value is required.";
+  }
+  if (labels.length !== values.length) {
+    return "Labels and values must have the same length.";
+  }
+  if (values.some((v) => v < 0)) {
+    return "Values must be non-negative.";
+  }
+  if (values.every((v) => v === 0)) {
+    return "At least one value must be positive.";
+  }
+  return null;
+}
 
 const metricConfigs: MetricConfig[] = [
   {
@@ -255,6 +310,26 @@ function getTopBrand(report: BrandReportRow[], key: ChartMetric) {
   return [...report].sort((left, right) => compareMetric(left, right, key))[0];
 }
 
+function getMetricConfig(key: ChartMetric) {
+  return metricConfigs.find((config) => config.key === key) ?? metricConfigs[0];
+}
+
+function isChartMetric(value: string): value is ChartMetric {
+  return metricConfigs.some((config) => config.key === value);
+}
+
+function sortReport(
+  report: BrandReportRow[],
+  metric: ChartMetric,
+  direction: SortDirection,
+) {
+  const sorted = [...report].sort((left, right) =>
+    compareMetric(left, right, metric),
+  );
+
+  return direction === "asc" ? sorted.reverse() : sorted;
+}
+
 function buildInsights(brand: BrandReportRow) {
   const insights = [];
 
@@ -300,13 +375,13 @@ function StatTile({
 function ChartPanel({
   config,
   report,
+  sortDirection = "desc",
 }: {
   config: MetricConfig;
   report: BrandReportRow[];
+  sortDirection?: SortDirection;
 }) {
-  const rows = [...report].sort((left, right) =>
-    compareMetric(left, right, config.key),
-  );
+  const rows = sortReport(report, config.key, sortDirection);
   const values = rows
     .map((brand) => getMetricValue(brand, config.key))
     .filter((value): value is number => value !== null);
@@ -418,13 +493,119 @@ function CompanyPage({ brand }: { brand: BrandReportRow }) {
   );
 }
 
-export default function App() {
+function MetricFocusView({
+  metric,
+  report,
+  sortDirection,
+}: {
+  metric: ChartMetric;
+  report: BrandReportRow[];
+  sortDirection: SortDirection;
+}) {
+  const config = getMetricConfig(metric);
+  const rows = sortReport(report, metric, sortDirection);
+  const leader = rows[0];
+  const laggard = rows[rows.length - 1];
+
+  return (
+    <section className="card adaptivePanel">
+      <div className="cardHeader">
+        <div>
+          <p className="eyebrow">Metric focus</p>
+          <h2>{config.label}</h2>
+          <p>{config.description}</p>
+        </div>
+      </div>
+
+      <div className="focusGrid">
+        <StatTile
+          detail={leader?.brandName ?? "No brand data yet"}
+          label="Strongest brand"
+          value={formatMetric(
+            leader ? getMetricValue(leader, metric) : null,
+            metric,
+          )}
+        />
+        <StatTile
+          detail={laggard?.brandName ?? "No brand data yet"}
+          label="Needs attention"
+          value={formatMetric(
+            laggard ? getMetricValue(laggard, metric) : null,
+            metric,
+          )}
+        />
+      </div>
+
+      <ChartPanel
+        config={config}
+        report={report}
+        sortDirection={sortDirection}
+      />
+    </section>
+  );
+}
+
+function ComparisonPage({
+  brands,
+}: {
+  brands: BrandReportRow[];
+}) {
+  return (
+    <section className="card adaptivePanel">
+      <div className="cardHeader">
+        <div>
+          <p className="eyebrow">Copilot comparison</p>
+          <h2>Company comparison</h2>
+          <p>Side-by-side Peec metrics for the selected companies.</p>
+        </div>
+      </div>
+
+      <div className="comparisonGrid">
+        {brands.map((brand) => (
+          <article className="comparisonCard" key={brandKey(brand)}>
+            <h3>{brand.brandName}</h3>
+            <dl>
+              {metricConfigs.map((config) => (
+                <div key={config.key}>
+                  <dt>{config.label}</dt>
+                  <dd>
+                    {formatMetric(
+                      getMetricValue(brand, config.key),
+                      config.key,
+                    )}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function DashboardApp() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [activeCompanyKey, setActiveCompanyKey] = useState("overview");
+  const [viewMode, setViewMode] = useState<DashboardViewMode>("overview");
+  const [focusedMetric, setFocusedMetric] =
+    useState<ChartMetric>("visibility");
+  const [companySort, setCompanySort] = useState<CompanySort>({
+    direction: "desc",
+    metric: "visibility",
+  });
+  const [comparisonKeys, setComparisonKeys] = useState<string[]>([]);
+  const [copilotStatus, setCopilotStatus] = useState("");
+  const [mainChart, setMainChart] = useState<MainChartPayload | null>(null);
+  const [pendingScrollTarget, setPendingScrollTarget] =
+    useState<ScrollTarget | null>(null);
   const [report, setReport] = useState<BrandReportRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const projectCardRef = useRef<HTMLElement | null>(null);
+  const companyNavRef = useRef<HTMLElement | null>(null);
+  const mainViewRef = useRef<HTMLDivElement | null>(null);
 
   const endDate = useMemo(() => formatDate(new Date()), []);
   const startDate = useMemo(() => thirtyDaysAgo(), []);
@@ -463,6 +644,10 @@ export default function App() {
 
   useEffect(() => {
     setActiveCompanyKey("overview");
+    setViewMode("overview");
+    setComparisonKeys([]);
+    setCopilotStatus("");
+    setMainChart(null);
   }, [selectedProjectId]);
 
   useEffect(() => {
@@ -476,6 +661,7 @@ export default function App() {
 
     if (!hasCompany) {
       setActiveCompanyKey("overview");
+      setViewMode("overview");
     }
   }, [activeCompanyKey, report]);
 
@@ -491,17 +677,562 @@ export default function App() {
   );
   const topVisibilityBrand = getTopBrand(report, "visibility");
   const topPositionBrand = getTopBrand(report, "position");
+  const sortedReport = useMemo(
+    () => sortReport(report, companySort.metric, companySort.direction),
+    [companySort.direction, companySort.metric, report],
+  );
+  const comparisonBrands = useMemo(
+    () =>
+      comparisonKeys
+        .map((key) => report.find((brand) => brandKey(brand) === key))
+        .filter((brand): brand is BrandReportRow => Boolean(brand)),
+    [comparisonKeys, report],
+  );
+
+  useEffect(() => {
+    if (!pendingScrollTarget) {
+      return;
+    }
+
+    const targets = {
+      companyNav: companyNavRef.current,
+      mainView: mainViewRef.current,
+      projectCard: projectCardRef.current,
+    };
+    const timeoutId = window.setTimeout(() => {
+      targets[pendingScrollTarget]?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+      setPendingScrollTarget(null);
+    }, 80);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    comparisonBrands.length,
+    pendingScrollTarget,
+    report.length,
+    selectedProjectId,
+    viewMode,
+  ]);
+
+  const findBrand = useCallback(
+    (key: string) => {
+      const normalizedKey = key.trim().toLowerCase();
+
+      return report.find((brand) => {
+        const exactKey = brandKey(brand).toLowerCase();
+        const name = brand.brandName.toLowerCase();
+
+        return exactKey === normalizedKey || name === normalizedKey;
+      });
+    },
+    [report],
+  );
+  const showOverview = useCallback(
+    (message = "Copilot returned to overview.") => {
+      setActiveCompanyKey("overview");
+      setViewMode("overview");
+      setComparisonKeys([]);
+      setCopilotStatus(message);
+      setPendingScrollTarget("mainView");
+    },
+    [],
+  );
+  const resetDashboard = useCallback(() => {
+    setActiveCompanyKey("overview");
+    setViewMode("overview");
+    setComparisonKeys([]);
+    setCopilotStatus("");
+    setMainChart(null);
+    setPendingScrollTarget("mainView");
+  }, []);
+  const selectCompany = useCallback(
+    (companyKey: string) => {
+      const brand = findBrand(companyKey);
+
+      if (!brand) {
+        return `No company matched "${companyKey}".`;
+      }
+
+      setActiveCompanyKey(brandKey(brand));
+      setViewMode("company");
+      setComparisonKeys([]);
+      setCopilotStatus(`Copilot opened ${brand.brandName}.`);
+      setPendingScrollTarget("mainView");
+
+      return `Opened the company page for ${brand.brandName}.`;
+    },
+    [findBrand],
+  );
+  const focusMetric = useCallback((metric: string) => {
+    if (!isChartMetric(metric)) {
+      return `Unknown metric "${metric}".`;
+    }
+
+    setFocusedMetric(metric);
+    setActiveCompanyKey("overview");
+    setViewMode("metricFocus");
+    setCopilotStatus(`Copilot focused ${getMetricConfig(metric).label}.`);
+    setPendingScrollTarget("mainView");
+
+    return `Focused the dashboard on ${getMetricConfig(metric).label}.`;
+  }, []);
+  const compactBrands = useMemo(
+    () =>
+      report.slice(0, 25).map((brand) => ({
+        key: brandKey(brand),
+        name: brand.brandName,
+        position: brand.position,
+        sentiment: brand.sentiment,
+        shareOfVoice: brand.shareOfVoice,
+        visibility: brand.visibility,
+      })),
+    [report],
+  );
+  const dashboardContext = useMemo(
+    () => ({
+      availableActions: [
+        "selectProject",
+        "showOverview",
+        "selectCompany",
+        "focusMetric",
+        "sortCompanies",
+        "compareCompanies",
+        "showPieChart",
+        "showVerticalBarChart",
+        "showLineChart",
+      ],
+      brands: compactBrands,
+      dateRange: { endDate, startDate },
+      focusedMetric,
+      metrics: metricConfigs.map((config) => config.key),
+      selectedCompany: selectedCompany?.brandName ?? null,
+      selectedProject: selectedProject
+        ? { id: selectedProject.id, name: selectedProject.name }
+        : null,
+      sort: companySort,
+      viewMode,
+    }),
+    [
+      compactBrands,
+      companySort,
+      endDate,
+      focusedMetric,
+      selectedCompany,
+      selectedProject,
+      startDate,
+      viewMode,
+    ],
+  );
+
+  useCopilotReadable(
+    {
+      description: "Current Peec dashboard state and visible brand metrics.",
+      value: dashboardContext,
+    },
+    [dashboardContext],
+  );
+
+  useCopilotAdditionalInstructions(
+    {
+      instructions: [
+        "For Peec metrics and account data, rely on server Peec AI MCP read",
+        "tools rather than inventing numbers.",
+        "Use frontend actions to adapt the dashboard when useful.",
+        "Valid metrics are visibility, shareOfVoice, sentiment, and position.",
+        "Use company keys from the readable dashboard context.",
+        "Prefer UI actions over describing manual click steps.",
+        "Use showPieChart, showVerticalBarChart, or showLineChart on the main",
+        "overview. Line chart: xLabels in order and series[] (label + values",
+        "per line, same length as xLabels).",
+      ].join(" "),
+    },
+    [],
+  );
+
+  useFrontendTool(
+    {
+      description: "Switch the dashboard to one of the loaded Peec projects.",
+      handler: ({ projectId }) => {
+        const project = projects.find((item) => item.id === projectId);
+
+        if (!project) {
+          return `No project matched "${projectId}".`;
+        }
+
+        setSelectedProjectId(project.id);
+        setCopilotStatus(`Copilot switched to ${project.name}.`);
+        setPendingScrollTarget("projectCard");
+
+        return `Selected project ${project.name}.`;
+      },
+      name: "selectProject",
+      parameters: [
+        {
+          description: "The exact project id from dashboard context.",
+          name: "projectId",
+          required: true,
+          type: "string",
+        },
+      ],
+    },
+    [projects],
+  );
+
+  useFrontendTool(
+    {
+      description: "Return the dashboard to the brand report overview.",
+      handler: () => {
+        showOverview();
+        return "Returned to the overview charts.";
+      },
+      name: "showOverview",
+      parameters: [],
+    },
+    [showOverview],
+  );
+
+  useFrontendTool(
+    {
+      description: "Open a company-specific page in the dashboard.",
+      handler: ({ companyKey }) => selectCompany(companyKey),
+      name: "selectCompany",
+      parameters: [
+        {
+          description: "The company key or exact company name.",
+          name: "companyKey",
+          required: true,
+          type: "string",
+        },
+      ],
+    },
+    [selectCompany],
+  );
+
+  useFrontendTool(
+    {
+      description: "Focus the dashboard on one Peec metric.",
+      handler: ({ metric }) => focusMetric(metric),
+      name: "focusMetric",
+      parameters: [
+        {
+          description: "One of visibility, shareOfVoice, sentiment, position.",
+          enum: metricConfigs.map((config) => config.key),
+          name: "metric",
+          required: true,
+          type: "string",
+        },
+      ],
+    },
+    [focusMetric],
+  );
+
+  useFrontendTool(
+    {
+      description: "Sort company cards and chart rows by a Peec metric.",
+      handler: ({ direction, metric }) => {
+        if (!isChartMetric(metric)) {
+          return `Unknown metric "${metric}".`;
+        }
+
+        const nextDirection = direction === "asc" ? "asc" : "desc";
+        setCompanySort({ direction: nextDirection, metric });
+        setViewMode("overview");
+        setCopilotStatus(
+          `Copilot sorted companies by ${getMetricConfig(metric).label}.`,
+        );
+        setPendingScrollTarget("companyNav");
+
+        return `Sorted companies by ${metric} ${nextDirection}.`;
+      },
+      name: "sortCompanies",
+      parameters: [
+        {
+          description: "One of visibility, shareOfVoice, sentiment, position.",
+          enum: metricConfigs.map((config) => config.key),
+          name: "metric",
+          required: true,
+          type: "string",
+        },
+        {
+          description: "Sort direction.",
+          enum: ["asc", "desc"],
+          name: "direction",
+          required: true,
+          type: "string",
+        },
+      ],
+    },
+    [],
+  );
+
+  useFrontendTool(
+    {
+      description: "Compare selected companies in the main dashboard area.",
+      handler: ({ companyKeys }) => {
+        const brands = companyKeys
+          .map((key) => findBrand(key))
+          .filter((brand): brand is BrandReportRow => Boolean(brand));
+
+        if (brands.length < 2) {
+          return "Choose at least two valid company keys to compare.";
+        }
+
+        setComparisonKeys(brands.map((brand) => brandKey(brand)));
+        setActiveCompanyKey("overview");
+        setViewMode("comparison");
+        setCopilotStatus(
+          `Copilot compared ${
+            brands.map((brand) => brand.brandName).join(", ")
+          }.`,
+        );
+        setPendingScrollTarget("mainView");
+
+        return `Comparing ${
+          brands.map((brand) => brand.brandName).join(", ")
+        }.`;
+      },
+      name: "compareCompanies",
+      parameters: [
+        {
+          description: "Company keys or exact company names to compare.",
+          name: "companyKeys",
+          required: true,
+          type: "string[]",
+        },
+      ],
+    },
+    [findBrand],
+  );
+
+  useFrontendTool(
+    {
+      description:
+        "Show a pie chart on the main Brand report overview. Use for share " +
+        "or proportions. Pass parallel labels and values; values must be " +
+        "non-negative. Zero values are ignored. Switches to overview if " +
+        "needed.",
+      handler: ({ labels, title, values }) => {
+        const err = errNonnegLabelValues(labels, values);
+        if (err) {
+          return err;
+        }
+        const trimmed = title?.trim();
+        setActiveCompanyKey("overview");
+        setViewMode("overview");
+        setComparisonKeys([]);
+        setMainChart({
+          kind: "pie",
+          labels,
+          title: trimmed || undefined,
+          values,
+        });
+        setPendingScrollTarget("mainView");
+        setCopilotStatus(
+          trimmed
+            ? `Copilot pie chart: ${trimmed}.`
+            : "Copilot added a pie chart to the overview.",
+        );
+        return trimmed
+          ? `Pie chart shown on the overview: ${trimmed}.`
+          : "Pie chart shown on the main overview page.";
+      },
+      name: "showPieChart",
+      parameters: [
+        {
+          description: "Short title above the chart.",
+          name: "title",
+          required: false,
+          type: "string",
+        },
+        {
+          description: "Label for each slice, same order as values.",
+          name: "labels",
+          required: true,
+          type: "string[]",
+        },
+        {
+          description: "Magnitude for each slice (any non-negative scale).",
+          name: "values",
+          required: true,
+          type: "number[]",
+        },
+      ],
+    },
+    [],
+  );
+
+  useFrontendTool(
+    {
+      description:
+        "Show a vertical bar chart on the main overview. Use for category " +
+        "comparisons. Pass parallel category labels and values; values must " +
+        "be non-negative. Switches to overview if needed.",
+      handler: ({ labels, title, values }) => {
+        const err = errNonnegLabelValues(labels, values);
+        if (err) {
+          return err;
+        }
+        const trimmed = title?.trim();
+        setActiveCompanyKey("overview");
+        setViewMode("overview");
+        setComparisonKeys([]);
+        setMainChart({
+          kind: "vbar",
+          labels,
+          title: trimmed || undefined,
+          values,
+        });
+        setPendingScrollTarget("mainView");
+        setCopilotStatus(
+          trimmed
+            ? `Copilot bar chart: ${trimmed}.`
+            : "Copilot added a bar chart to the overview.",
+        );
+        return trimmed
+          ? `Bar chart on the overview: ${trimmed}.`
+          : "Vertical bar chart shown on the main overview page.";
+      },
+      name: "showVerticalBarChart",
+      parameters: [
+        {
+          description: "Title above the chart.",
+          name: "title",
+          required: false,
+          type: "string",
+        },
+        {
+          description: "Category label for each bar.",
+          name: "labels",
+          required: true,
+          type: "string[]",
+        },
+        {
+          description: "Bar height per category (any non-negative scale).",
+          name: "values",
+          required: true,
+          type: "number[]",
+        },
+      ],
+    },
+    [],
+  );
+
+  useFrontendTool(
+    {
+      description:
+        "Show a line graph (one or more lines) on the main overview. Pass " +
+        "xLabels in time order, then series: each { label, values } with " +
+        "values aligned to xLabels. Compare brands or metrics with several " +
+        "series. yLabel is optional. Use Peec tools first when sourcing data.",
+      handler: ({ series, title, xLabels, yLabel }) => {
+        if (!xLabels?.length) {
+          return "xLabels (time or period names) is required.";
+        }
+        if (!series?.length) {
+          return "series must include at least one { label, values } line.";
+        }
+        const xn = xLabels.length;
+        for (let i = 0; i < series.length; i += 1) {
+          const row = series[i];
+          const lab = String(row?.label ?? "").trim();
+          const vals = row?.values;
+          if (!lab) {
+            return `Line ${i + 1} needs a non-empty label.`;
+          }
+          if (!vals?.length) {
+            return `Line "${lab}" has no values.`;
+          }
+          if (vals.length !== xn) {
+            return (
+              `Line "${lab}": need ${xn} y values to match xLabels.`
+            );
+          }
+        }
+        const trimmed = title?.trim();
+        const yTr = yLabel?.trim();
+        const normalized = series.map((row) => ({
+          label: String(row?.label ?? "").trim(),
+          values: row?.values ?? [],
+        }));
+        setActiveCompanyKey("overview");
+        setViewMode("overview");
+        setComparisonKeys([]);
+        setMainChart({
+          kind: "line",
+          series: normalized,
+          title: trimmed || undefined,
+          xLabels,
+          yLabel: yTr || undefined,
+        });
+        setPendingScrollTarget("mainView");
+        setCopilotStatus(
+          trimmed
+            ? `Copilot line chart: ${trimmed}.`
+            : "Copilot added a line chart to the overview.",
+        );
+        return trimmed
+          ? `Line chart on the overview: ${trimmed}.`
+          : "Line graph shown on the main overview page.";
+      },
+      name: "showLineChart",
+      parameters: [
+        {
+          description: "Title above the chart.",
+          name: "title",
+          required: false,
+          type: "string",
+        },
+        {
+          description: "X-axis (chronological): one label per point.",
+          name: "xLabels",
+          required: true,
+          type: "string[]",
+        },
+        {
+          attributes: [
+            {
+              description: "Legend and tooltip name for this line.",
+              name: "label",
+              required: true,
+              type: "string",
+            },
+            {
+              description: "Y values, one per xLabels index.",
+              name: "values",
+              required: true,
+              type: "number[]",
+            },
+          ],
+          description:
+            "One entry per line/brand/metric. Each values array same length " +
+            "as xLabels.",
+          name: "series",
+          required: true,
+          type: "object[]",
+        },
+        {
+          description: "Optional shared y-axis name (e.g. share, score).",
+          name: "yLabel",
+          required: false,
+          type: "string",
+        },
+      ],
+    },
+    [],
+  );
 
   return (
     <div className="appFrame">
       <main className="shell">
         <section className="hero">
           <div>
-            <p className="eyebrow">Peec AI</p>
+            <p className="eyebrow">GoGeo</p>
             <h1>AI search intelligence for every company you track.</h1>
             <p>
               Compare visibility, share of voice, sentiment, and ranking
-              position across the selected Peec project.
+              position across the selected project. Powered by Peec AI.
             </p>
           </div>
           <div className="heroPanel">
@@ -512,8 +1243,16 @@ export default function App() {
         </section>
 
         {error ? <div className="notice">{error}</div> : null}
+        {copilotStatus ? (
+          <div className="notice copilotNotice">
+            <span>{copilotStatus}</span>
+            <button onClick={resetDashboard} type="button">
+              Reset dashboard
+            </button>
+          </div>
+        ) : null}
 
-        <section className="card projectCard">
+        <section className="card projectCard" ref={projectCardRef}>
           <div className="cardHeader">
             <div>
               <h2>Projects</h2>
@@ -524,7 +1263,10 @@ export default function App() {
 
           <select
             disabled={!projects.length}
-            onChange={(event) => setSelectedProjectId(event.target.value)}
+            onChange={(event) => {
+              setSelectedProjectId(event.target.value);
+              setPendingScrollTarget("projectCard");
+            }}
             value={selectedProjectId}
           >
             {projects.map((project) => (
@@ -559,7 +1301,7 @@ export default function App() {
           />
         </section>
 
-        <section className="card companyNavCard">
+        <section className="card companyNavCard" ref={companyNavRef}>
           <div className="cardHeader">
             <div>
               <h2>Company pages</h2>
@@ -571,59 +1313,129 @@ export default function App() {
 
           <div className="companyNav">
             <button
-              className={activeCompanyKey === "overview" ? "isActive" : ""}
-              onClick={() => setActiveCompanyKey("overview")}
+              className={viewMode === "overview" ? "isActive" : ""}
+              onClick={resetDashboard}
               type="button"
             >
               Overview
             </button>
-            {report.map((brand) => (
+            {sortedReport.map((brand) => (
               <CompanyCard
                 brand={brand}
-                isActive={activeCompanyKey === brandKey(brand)}
+                isActive={
+                  viewMode === "company" && activeCompanyKey === brandKey(brand)
+                }
                 key={brandKey(brand)}
-                onSelect={() => setActiveCompanyKey(brandKey(brand))}
+                onSelect={() => {
+                  setActiveCompanyKey(brandKey(brand));
+                  setViewMode("company");
+                  setCopilotStatus("");
+                  setPendingScrollTarget("mainView");
+                }}
               />
             ))}
           </div>
         </section>
 
-        {selectedCompany ? (
-          <CompanyPage brand={selectedCompany} />
-        ) : (
-          <section className="card">
-            <div className="cardHeader">
-              <div>
-                <h2>Brand report overview</h2>
-                <p>
-                  Beautiful graph views for the last 30 days of Peec metrics.
-                </p>
+        <div className="scrollTarget" ref={mainViewRef}>
+          {viewMode === "company" && selectedCompany ? (
+            <CompanyPage brand={selectedCompany} />
+          ) : viewMode === "metricFocus" ? (
+            <MetricFocusView
+              metric={focusedMetric}
+              report={report}
+              sortDirection={companySort.direction}
+            />
+          ) : viewMode === "comparison" && comparisonBrands.length ? (
+            <ComparisonPage brands={comparisonBrands} />
+          ) : (
+            <section className="card">
+              <div className="cardHeader">
+                <div>
+                  <h2>Brand report overview</h2>
+                  <p>
+                    Beautiful graph views for the last 30 days of Peec metrics.
+                  </p>
+                </div>
               </div>
-            </div>
 
-            <div className="chartGrid">
-              {metricConfigs.map((config) => (
-                <ChartPanel
-                  config={config}
-                  key={config.key}
-                  report={report}
-                />
-              ))}
-            </div>
+              {mainChart ? (
+                <div className="mainChartBlock">
+                  <div className="mainChartHeader">
+                    <div>
+                      <p className="eyebrow mainChartEyebrow">Copilot</p>
+                      <p className="mainChartDescription">
+                        Chart from the assistant (pie, vertical bars, or
+                        time-series). Dismiss when you are done.
+                      </p>
+                    </div>
+                    <button
+                      className="mainChartDismiss"
+                      onClick={() => {
+                        setMainChart(null);
+                      }}
+                      type="button"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                  {mainChart.kind === "pie" ? (
+                    <ChatPieChart
+                      className="pieChart pieChartOnMain"
+                      labels={mainChart.labels}
+                      size={220}
+                      title={mainChart.title}
+                      values={mainChart.values}
+                    />
+                  ) : mainChart.kind === "vbar" ? (
+                    <CopilotVerticalBarChart
+                      className="copilotVBar mainCopilotViz"
+                      labels={mainChart.labels}
+                      title={mainChart.title}
+                      values={mainChart.values}
+                    />
+                  ) : (
+                    <CopilotLineChart
+                      className="copilotLine mainCopilotViz"
+                      series={mainChart.series}
+                      title={mainChart.title}
+                      xLabels={mainChart.xLabels}
+                      yLabel={mainChart.yLabel}
+                    />
+                  )}
+                </div>
+              ) : null}
 
-            {!report.length && !error ? (
-              <p className="empty">No brand report rows returned yet.</p>
-            ) : null}
-          </section>
-        )}
+              <div className="chartGrid">
+                {metricConfigs.map((config) => (
+                  <ChartPanel
+                    config={config}
+                    key={config.key}
+                    report={sortedReport}
+                    sortDirection={companySort.direction}
+                  />
+                ))}
+              </div>
+
+              {!report.length && !error ? (
+                <p className="empty">No brand report rows returned yet.</p>
+              ) : null}
+            </section>
+          )}
+        </div>
       </main>
 
-      <Chatbot
-        endDate={endDate}
-        projectId={selectedProjectId}
-        projectName={selectedProject?.name ?? "Peec project"}
-        startDate={startDate}
-      />
+      <Chatbot />
     </div>
   );
+}
+
+export default function App() {
+  const pathname = window.location.pathname.replace(/\/$/, "");
+
+  if (pathname === "/bookmo-ai" || pathname === "/bookmoai") {
+    return <BookmoAiLandingPage />;
+  }
+
+  return <DashboardApp />;
 }

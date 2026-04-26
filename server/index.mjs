@@ -1,7 +1,16 @@
+import { createOpenAI } from "@ai-sdk/openai";
+import {
+  BuiltInAgent,
+  CopilotRuntime,
+  defineTool,
+} from "@copilotkit/runtime/v2";
+import { createCopilotEndpointSingleRouteExpress } from
+  "@copilotkit/runtime/v2/express";
 import dotenv from "dotenv";
 import express from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { z } from "zod";
 import {
   callPeecMcpTool,
   finishPeecMcpAuth,
@@ -18,14 +27,19 @@ const baseUrl = process.env.PEEC_BASE_URL ?? "https://api.peec.ai/customer/v1";
 const apiKey = process.env.PEEC_API_KEY;
 const projectId = process.env.PEEC_PROJECT_ID;
 const aiApiKey = process.env.AZURE_OPENAI_API_KEY;
-const aiModel = process.env.AZURE_OPENAI_MODEL ?? "gpt-5.4-nano";
+const aiModel = process.env.AZURE_OPENAI_MODEL ?? "gpt-5.5-1";
 const aiResponsesUrl = process.env.AZURE_OPENAI_RESPONSES_URL;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..");
 const distDir = path.join(rootDir, "dist");
+const bodyJsonLimit = process.env.BODY_JSON_LIMIT ?? "10mb";
 
-app.use(express.json());
+app.use(
+  express.json({
+    limit: bodyJsonLimit,
+  }),
+);
 
 function requireApiKey(response) {
   if (apiKey) {
@@ -205,6 +219,127 @@ function compactToolResult(result) {
   };
 }
 
+function getOpenAIBaseUrl() {
+  return aiResponsesUrl?.replace(/\/responses\/?$/, "");
+}
+
+function createCopilotLanguageModel() {
+  const baseURL = getOpenAIBaseUrl();
+
+  if (!aiApiKey || !baseURL) {
+    return null;
+  }
+
+  const provider = createOpenAI({
+    apiKey: aiApiKey,
+    baseURL,
+    headers: {
+      "api-key": aiApiKey,
+    },
+  });
+
+  return provider.chat(aiModel);
+}
+
+/**
+ * When the client runs CopilotKit frontend tools, the next HTTP request can
+ * include assistant toolCalls without matching `role: "tool"` rows yet.
+ * `streamText` then throws AI_MissingToolResultsError. Add minimal placeholders
+ * so every toolCallId has a result before the agent runs.
+ */
+function ensureAgUiToolResultsForCopilot(messages) {
+  if (!Array.isArray(messages)) {
+    return messages;
+  }
+
+  const withResult = new Set(
+    messages
+      .filter((m) => m?.role === "tool" && m.toolCallId)
+      .map((m) => m.toolCallId),
+  );
+
+  const out = [];
+
+  for (const msg of messages) {
+    out.push(msg);
+
+    if (msg?.role !== "assistant" || !msg.toolCalls?.length) {
+      continue;
+    }
+
+    for (const tc of msg.toolCalls) {
+      const id = tc?.id;
+
+      if (!id || withResult.has(id)) {
+        continue;
+      }
+
+      withResult.add(id);
+      out.push({
+        content: JSON.stringify({
+          message:
+            "Client tool result was not on the server message list; " +
+            "placeholder so the run can continue.",
+          ok: true,
+        }),
+        role: "tool",
+        toolCallId: id,
+      });
+    }
+  }
+
+  return out;
+}
+
+class DefaultAgentWithToolResultGuard extends BuiltInAgent {
+  run(input) {
+    const next =
+      input && typeof input === "object"
+        ? {
+            ...input,
+            messages: ensureAgUiToolResultsForCopilot(input.messages),
+          }
+        : input;
+
+    return super.run(next);
+  }
+}
+
+const peecRuntimeTools = [
+  defineTool({
+    name: "listPeecReadTools",
+    description: "List read-only Peec MCP tools available to the dashboard.",
+    parameters: z.object({}),
+    execute: async () => {
+      const tools = await listPeecMcpTools();
+
+      return tools.map((tool) => ({
+        description: tool.description,
+        name: tool.name,
+        parameters: sanitizeSchema(tool.inputSchema),
+      }));
+    },
+  }),
+  defineTool({
+    name: "callPeecReadTool",
+    description:
+      "Call a read-only Peec MCP tool. Pass arguments as a JSON string.",
+    parameters: z.object({
+      argsJson: z
+        .string()
+        .optional()
+        .describe("JSON object string with the tool arguments."),
+      toolName: z.string().describe("The exact Peec MCP tool name."),
+    }),
+    execute: async ({ toolName, argsJson = "{}" }) => {
+      const args = JSON.parse(argsJson || "{}");
+      const result = await callPeecMcpTool(toolName, args);
+
+      return compactToolResult(result);
+    },
+  }),
+];
+
 async function aiGenerateWithPeecTools(prompt) {
   const mcpTools = await listPeecMcpTools();
   const tools = mcpTools.map(toAiTool);
@@ -311,6 +446,42 @@ async function getConfiguredProject() {
     };
   }
 }
+
+const copilotLanguageModel = createCopilotLanguageModel();
+const copilotRuntime = copilotLanguageModel
+  ? new CopilotRuntime({
+      agents: {
+        default: new DefaultAgentWithToolResultGuard({
+          maxSteps: 5,
+          model: copilotLanguageModel,
+          prompt: [
+            "You are the GoGeo dashboard copilot, powered by Peec AI.",
+            "Proactively answer Peec data questions with the Peec AI MCP read",
+            "tools: call listPeecReadTools when needed, then callPeecReadTool",
+            "with the correct toolName and arguments. Prefer MCP-grounded",
+            "facts over assumptions or stale chat context alone.",
+            "Use showPieChart for share, showVerticalBarChart for bar compare,",
+            "and showLineChart for one or more lines: xLabels in order plus a",
+            "series array of { label, values } per line (values length = xLabels).",
+            "Use other frontend tools for dashboard UI (navigation, focus,",
+            "sorting, comparison). Keep answers concise and practical.",
+          ].join(" "),
+          tools: peecRuntimeTools,
+        }),
+      },
+    })
+  : null;
+const copilotRouter = copilotRuntime
+  ? createCopilotEndpointSingleRouteExpress({
+      basePath: "/api/copilotkit",
+      hooks: {
+        onError: ({ error, route }) => {
+          console.error("CopilotKit runtime error", route, error);
+        },
+      },
+      runtime: copilotRuntime,
+    })
+  : null;
 
 app.get("/api/health", (_request, response) => {
   response.json({
@@ -443,7 +614,7 @@ app.post("/api/ai/report-summary", async (request, response) => {
     "You are an AI search analytics strategist.",
     `Project: ${projectName ?? "Peec project"}.`,
     `Date range: ${startDate} to ${endDate}.`,
-    "Summarize this Peec AI brand report in 4 concise bullets.",
+    "Summarize this GoGeo brand report in 4 concise bullets.",
     "Include the strongest competitor, main risk, and one next action.",
     JSON.stringify(compactReport, null, 2),
   ].join("\n");
@@ -481,7 +652,7 @@ app.post("/api/chat", async (request, response) => {
       .join("\n");
 
     const prompt = [
-      "You are the Peec AI dashboard assistant.",
+      "You are the GoGeo dashboard assistant, powered by Peec AI.",
       "Use the supplied Peec AI context when answering.",
       "If the context is insufficient, say what data is missing.",
       "Keep answers concise and actionable.",
@@ -504,6 +675,18 @@ app.post("/api/chat", async (request, response) => {
     response.status(502).json({ message: error.message });
   }
 });
+
+if (copilotRouter) {
+  app.use(copilotRouter);
+} else {
+  app.use("/api/copilotkit", (_request, response) => {
+    response.status(500).json({
+      message:
+        "Missing Azure OpenAI config. Add AZURE_OPENAI_API_KEY and " +
+        "AZURE_OPENAI_RESPONSES_URL to .env.local.",
+    });
+  });
+}
 
 app.use("/api", (_request, response) => {
   response.status(404).json({ message: "API route not found." });
