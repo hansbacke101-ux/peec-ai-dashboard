@@ -1187,7 +1187,9 @@ dd {
   box-shadow: 0 8px 18px rgb(47 55 93 / 12%);
   flex: 0 0 38px;
   height: 38px;
-  object-fit: cover;
+  image-rendering: pixelated;
+  object-fit: none;
+  object-position: center;
   pointer-events: none;
   user-select: none;
   width: 38px;

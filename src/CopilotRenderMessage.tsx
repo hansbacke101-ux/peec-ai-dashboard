@@ -12,7 +12,9 @@ import {
   type RenderMessageProps,
 } from "@copilotkit/react-ui";
 import { AssistantMessageNoControls } from "./AssistantMessageNoControls";
-import geodudeAvatarUrl from "./assets/geodude-avatar.svg";
+
+const geodudeAvatarUrl =
+  "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/74.png";
 
 function CollapseIcon({ expanded }: { expanded: boolean }) {
   return (
