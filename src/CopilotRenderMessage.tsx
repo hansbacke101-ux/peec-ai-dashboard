@@ -347,22 +347,13 @@ export function CopilotRenderMessage({
   switch (message.role) {
     case "user":
       return (
-        <div className="copilotUserMessageRow" key={index}>
-          <div className="copilotUserBubbleWrap">
-            <UserMessageComponent
-              data-message-role="user"
-              ImageRenderer={ImageRendererComponent}
-              message={message}
-              rawData={message}
-            />
-          </div>
-          <img
-            alt="Geodude user avatar"
-            className="copilotUserAvatar"
-            draggable="false"
-            src={geodudeAvatarUrl}
-          />
-        </div>
+        <UserMessageComponent
+          data-message-role="user"
+          ImageRenderer={ImageRendererComponent}
+          key={index}
+          message={message}
+          rawData={message}
+        />
       );
     case "assistant": {
       const aiMessage = message as AIMessage;
@@ -381,10 +372,20 @@ export function CopilotRenderMessage({
       return (
         <div className="copilotAssistantWithTools" key={index}>
           <ToolCallStrip message={aiMessage} />
-          <AssistantMessageComponent
-            {...assistantProps}
-            data-message-role="assistant"
-          />
+          <div className="copilotAssistantMessageRow">
+            <img
+              alt="Geodude assistant avatar"
+              className="copilotAssistantAvatar"
+              draggable="false"
+              src={geodudeAvatarUrl}
+            />
+            <div className="copilotAssistantBubbleWrap">
+              <AssistantMessageComponent
+                {...assistantProps}
+                data-message-role="assistant"
+              />
+            </div>
+          </div>
         </div>
       );
     }

@@ -1160,27 +1160,27 @@ dd {
   display: none;
 }
 
-.copilotUserMessageRow {
+.copilotAssistantMessageRow {
   align-items: flex-end;
   display: flex;
   gap: 8px;
-  justify-content: flex-end;
+  justify-content: flex-start;
   margin: 4px 0;
   min-width: 0;
 }
 
-.copilotUserBubbleWrap {
+.copilotAssistantBubbleWrap {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
   max-width: calc(100% - 46px);
   min-width: 0;
 }
 
-.copilotUserBubbleWrap > * {
+.copilotAssistantBubbleWrap > * {
   max-width: 100%;
 }
 
-.copilotUserAvatar {
+.copilotAssistantAvatar {
   background: #f2f5fb;
   border: 1px solid #d8deea;
   border-radius: 999px;
