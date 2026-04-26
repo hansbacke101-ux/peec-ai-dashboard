@@ -241,6 +241,52 @@ function createCopilotLanguageModel() {
   return provider.chat(aiModel);
 }
 
+function readIds(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const ids = [];
+  for (const row of value) {
+    const id =
+      row?.toolCallId ??
+      row?.tool_call_id ??
+      (row?.type === "tool-call" ? row?.id : undefined);
+    if (typeof id === "string" && id) {
+      ids.push(id);
+    }
+  }
+  return ids;
+}
+
+function assistantToolCallIds(message) {
+  if (!message || message.role !== "assistant") {
+    return [];
+  }
+
+  return [
+    ...readIds(message.toolCalls),
+    ...readIds(message.parts),
+    ...readIds(message.content),
+  ];
+}
+
+function toolResultIds(message) {
+  if (!message || message.role !== "tool") {
+    return [];
+  }
+
+  const directId =
+    typeof message.toolCallId === "string" ? [message.toolCallId] : [];
+
+  return [
+    ...directId,
+    ...readIds(message.toolResults),
+    ...readIds(message.parts),
+    ...readIds(message.content),
+  ];
+}
+
 /**
  * When the client runs CopilotKit frontend tools, the next HTTP request can
  * include assistant toolCalls without matching `role: "tool"` rows yet.
@@ -252,23 +298,14 @@ function ensureAgUiToolResultsForCopilot(messages) {
     return messages;
   }
 
-  const withResult = new Set(
-    messages
-      .filter((m) => m?.role === "tool" && m.toolCallId)
-      .map((m) => m.toolCallId),
-  );
+  const withResult = new Set(messages.flatMap((m) => toolResultIds(m)));
 
   const out = [];
 
   for (const msg of messages) {
     out.push(msg);
 
-    if (msg?.role !== "assistant" || !msg.toolCalls?.length) {
-      continue;
-    }
-
-    for (const tc of msg.toolCalls) {
-      const id = tc?.id;
+    for (const id of assistantToolCallIds(msg)) {
 
       if (!id || withResult.has(id)) {
         continue;
