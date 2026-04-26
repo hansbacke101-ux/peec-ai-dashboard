@@ -60,11 +60,29 @@ function CollapseIcon({ expanded }: { expanded: boolean }) {
 const CALL_PEEC_READ = "callPeecReadTool";
 const LIST_PEEC_READ = "listPeecReadTools";
 
-function truncateText(text: string, max: number) {
+function normalizeText(value: unknown): string {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (value === null || value === undefined) {
+    return "";
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function truncateText(value: unknown, max: number) {
+  const text = normalizeText(value);
   if (text.length <= max) {
     return text;
   }
-  return `${text.slice(0, max)}…`;
+  return `${text.slice(0, max)}...`;
 }
 
 /**
@@ -255,13 +273,12 @@ function ToolResultCard({
 }) {
   const [expanded, setExpanded] = useState(false);
   const bodyId = useId();
-  const err = message.error;
-  const fullText = err
-    ? `Error: ${err}`
-    : (message.content ?? "");
+  const err = normalizeText(message.error);
+  const content = normalizeText(message.content);
+  const fullText = err ? `Error: ${err}` : content;
   const preview = err
-    ? `Error: ${truncateText(String(err), 48)}`
-    : truncateText(message.content ?? "", 56);
+    ? `Error: ${truncateText(err, 48)}`
+    : truncateText(content, 56);
   const linkedCall = findToolCallForResult(message, messages);
   const orphanName =
     message.toolName ?? resolveToolFunctionName(message, messages);
