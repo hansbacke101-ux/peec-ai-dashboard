@@ -11,7 +11,7 @@ import {
   useCopilotReadable,
   useFrontendTool,
 } from "@copilotkit/react-core";
-import { BookmoAiLandingPage } from "./BookmoAiLandingPage";
+import { BookmoAiLandingPage } from "./use-case-landing-page-bookmo-ai";
 import Chatbot from "./Chatbot";
 import { ChatPieChart } from "./ChatPieChart";
 import { CopilotLineChart } from "./CopilotLineChart";
