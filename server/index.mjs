@@ -241,50 +241,75 @@ function createCopilotLanguageModel() {
   return provider.chat(aiModel);
 }
 
-function readIds(value) {
-  if (!Array.isArray(value)) {
-    return [];
+function walk(value, visit) {
+  if (!value || typeof value !== "object") {
+    return;
   }
 
-  const ids = [];
-  for (const row of value) {
-    const id =
-      row?.toolCallId ??
-      row?.tool_call_id ??
-      (row?.type === "tool-call" ? row?.id : undefined);
-    if (typeof id === "string" && id) {
-      ids.push(id);
+  visit(value);
+
+  if (Array.isArray(value)) {
+    for (const row of value) {
+      walk(row, visit);
     }
+    return;
   }
-  return ids;
+
+  for (const row of Object.values(value)) {
+    walk(row, visit);
+  }
 }
 
-function assistantToolCallIds(message) {
+function normalizeType(type) {
+  return typeof type === "string"
+    ? type.toLowerCase().replace(/[_\s]/g, "-")
+    : "";
+}
+
+function collectAssistantToolCallIds(message) {
   if (!message || message.role !== "assistant") {
     return [];
   }
 
-  return [
-    ...readIds(message.toolCalls),
-    ...readIds(message.parts),
-    ...readIds(message.content),
-  ];
+  const ids = new Set();
+  walk(message, (node) => {
+    const type = normalizeType(node?.type);
+    const looksLikeToolCall =
+      type === "tool-call" ||
+      type === "function-call" ||
+      Array.isArray(node?.toolCalls);
+    const id =
+      node?.id ??
+      node?.toolCallId ??
+      node?.tool_call_id;
+    if (looksLikeToolCall && typeof id === "string" && id) {
+      ids.add(id);
+    }
+    if (
+      typeof node?.toolCallId === "string" &&
+      normalizeType(node?.role) === "assistant"
+    ) {
+      ids.add(node.toolCallId);
+    }
+  });
+  return [...ids];
 }
 
-function toolResultIds(message) {
-  if (!message || message.role !== "tool") {
-    return [];
-  }
-
-  const directId =
-    typeof message.toolCallId === "string" ? [message.toolCallId] : [];
-
-  return [
-    ...directId,
-    ...readIds(message.toolResults),
-    ...readIds(message.parts),
-    ...readIds(message.content),
-  ];
+function collectToolResultIds(message) {
+  const role = normalizeType(message?.role);
+  const ids = new Set();
+  walk(message, (node) => {
+    const type = normalizeType(node?.type);
+    const id = node?.toolCallId ?? node?.tool_call_id;
+    const isToolResultShape =
+      role === "tool" ||
+      type === "tool-result" ||
+      type === "function-call-output";
+    if (isToolResultShape && typeof id === "string" && id) {
+      ids.add(id);
+    }
+  });
+  return [...ids];
 }
 
 /**
@@ -298,20 +323,22 @@ function ensureAgUiToolResultsForCopilot(messages) {
     return messages;
   }
 
-  const withResult = new Set(messages.flatMap((m) => toolResultIds(m)));
+  const withResult = new Set(messages.flatMap((m) => collectToolResultIds(m)));
 
   const out = [];
+  const injected = [];
 
   for (const msg of messages) {
     out.push(msg);
 
-    for (const id of assistantToolCallIds(msg)) {
+    for (const id of collectAssistantToolCallIds(msg)) {
 
       if (!id || withResult.has(id)) {
         continue;
       }
 
       withResult.add(id);
+      injected.push(id);
       out.push({
         content: JSON.stringify({
           message:
@@ -323,6 +350,13 @@ function ensureAgUiToolResultsForCopilot(messages) {
         toolCallId: id,
       });
     }
+  }
+
+  if (injected.length > 0) {
+    console.warn(
+      "CopilotKit tool-result guard injected placeholder results:",
+      injected,
+    );
   }
 
   return out;
