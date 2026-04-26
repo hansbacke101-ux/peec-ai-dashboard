@@ -6,9 +6,15 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 const peecMcpUrl = process.env.PEEC_MCP_URL ?? "https://api.peec.ai/mcp";
-const appUrl = process.env.APP_URL ?? `http://localhost:${process.env.PORT ?? 3001}`;
+const vercelUrl = process.env.VERCEL_URL;
+const appUrl =
+  process.env.APP_URL ??
+  (vercelUrl ? `https://${vercelUrl}` : null) ??
+  `http://localhost:${process.env.PORT ?? 3001}`;
 const redirectUrl = new URL("/api/peec-mcp/callback", appUrl).toString();
-const authPath = path.resolve(".peec-mcp-auth.json");
+const authPath = process.env.PEEC_MCP_AUTH_PATH
+  ? path.resolve(process.env.PEEC_MCP_AUTH_PATH)
+  : path.join(process.env.TMPDIR ?? "/tmp", ".peec-mcp-auth.json");
 const writeToolPattern = /^(create|update|delete)_/;
 
 let state = {};

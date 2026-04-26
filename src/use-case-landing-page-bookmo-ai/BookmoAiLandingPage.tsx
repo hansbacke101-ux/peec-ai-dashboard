@@ -1,4 +1,9 @@
-import { useEffect, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import "./bookmo-ai-landing.css";
 
 type QueueItem = {
@@ -208,7 +213,7 @@ function PublicShell({ children }: { children: ReactNode }) {
             <ArrowIcon />
           </button>
         </div>
-        <p>Bookmo · CRM for music booking agencies</p>
+        <p>Bookmo - CRM for music booking agencies</p>
       </footer>
       {signupOpen ? (
         <div className="bookmoDialogBackdrop" role="presentation">
@@ -248,7 +253,7 @@ export function BookmoAiLandingPage() {
             <div className="bookmoHeroCopy">
               <div className="bookmoHeroBadge">
                 <span />
-                Early access · Spring 2026 cohort
+                Early access - Spring 2026 cohort
               </div>
               <h1>
                 Close more bookings,
@@ -266,7 +271,7 @@ export function BookmoAiLandingPage() {
                 </a>
                 <span>
                   <CheckIcon />
-                  Limited spots · Onboarding included
+                  Limited spots - Onboarding included
                 </span>
               </div>
             </div>
@@ -296,7 +301,7 @@ export function BookmoAiLandingPage() {
                 <CheckIcon />
                 <div>
                   <strong>Contract signed</strong>
-                  <span>Conne Island · Apr 09</span>
+                  <span>Conne Island - Apr 09</span>
                 </div>
               </div>
             </div>
@@ -328,7 +333,10 @@ export function BookmoAiLandingPage() {
 
         <section className="bookmoOutcomes" id="outcomes">
           {outcomes.map((outcome) => (
-            <article key={outcome.num} style={{ "--accent": outcome.color }}>
+            <article
+              key={outcome.num}
+              style={{ "--accent": outcome.color } as CSSProperties}
+            >
               <span>{outcome.num} / 03</span>
               <p>{outcome.voice}</p>
               <h2>{outcome.label}</h2>
@@ -371,11 +379,11 @@ export function BookmoAiLandingPage() {
                   <b>NR</b>
                   <div>
                     <strong>Nina Rosen</strong>
-                    <span>nina@agency.com → marco@northhall.de</span>
+                    <span>nina@agency.com -&gt; marco@northhall.de</span>
                   </div>
                   <small>2h ago</small>
                 </div>
-                <h3>Re: Leipzig offer — still interested?</h3>
+                <h3>Re: Leipzig offer - still interested?</h3>
                 <p>
                   Hi Marco, just following up on the offer we sent Tuesday.
                   Happy to hop on a quick call if that helps.
@@ -397,8 +405,8 @@ export function BookmoAiLandingPage() {
               <header>
                 <b>PA</b>
                 <div>
-                  <strong>Pano · Festsaal Kreuzberg</strong>
-                  <span>Berlin · Apr 08 · 650 cap</span>
+                  <strong>Pano - Festsaal Kreuzberg</strong>
+                  <span>Berlin - Apr 08 - 650 cap</span>
                 </div>
                 <small>2 / 4 done</small>
               </header>
@@ -412,8 +420,8 @@ export function BookmoAiLandingPage() {
                 <span>Settlement</span>
               </nav>
               {[
-                ["Stage plot uploaded", true, "Tour manager · 2d ago"],
-                ["Hospitality rider confirmed", true, "Venue · yesterday"],
+                ["Stage plot uploaded", true, "Tour manager - 2d ago"],
+                ["Hospitality rider confirmed", true, "Venue - yesterday"],
                 ["Hotel accommodation", false, "Owed by venue"],
                 ["Ground transport locked", false, "Owed by tour manager"],
               ].map(([label, done, owner]) => (
@@ -442,14 +450,14 @@ export function BookmoAiLandingPage() {
                 <header>
                   <b>PA</b>
                   <div>
-                    <span>Upcoming · Pano</span>
+                    <span>Upcoming - Pano</span>
                     <strong>Next 48 hours</strong>
                   </div>
                 </header>
                 {[
-                  ["Tonight", "Festsaal Kreuzberg", "22:00", "Berlin · DE"],
-                  ["Tomorrow", "Train DE → NL", "11:30", "Berlin Hbf"],
-                  ["Apr 13", "Skatecafe Amsterdam", "23:30", "Amsterdam · NL"],
+                  ["Tonight", "Festsaal Kreuzberg", "22:00", "Berlin - DE"],
+                  ["Tomorrow", "Train DE -> NL", "11:30", "Berlin Hbf"],
+                  ["Apr 13", "Skatecafe Amsterdam", "23:30", "Amsterdam - NL"],
                 ].map(([date, venue, time, sub]) => (
                   <article key={date}>
                     <div>
@@ -475,7 +483,7 @@ export function BookmoAiLandingPage() {
                 <SparkIcon />
                 <div>
                   <strong>Assistant</strong>
-                  <span>2 suggestions · just now</span>
+                  <span>2 suggestions - just now</span>
                 </div>
                 <small>Live</small>
               </header>

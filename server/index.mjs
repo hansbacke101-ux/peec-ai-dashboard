@@ -247,29 +247,104 @@ function createCopilotLanguageModel() {
  * `streamText` then throws AI_MissingToolResultsError. Add minimal placeholders
  * so every toolCallId has a result before the agent runs.
  */
+function collectAssistantToolCallIds(message) {
+  const ids = [];
+  if (!message || typeof message !== "object") {
+    return ids;
+  }
+
+  if (Array.isArray(message.toolCalls)) {
+    for (const call of message.toolCalls) {
+      if (call?.id) {
+        ids.push(String(call.id));
+      }
+    }
+  }
+
+  const content = Array.isArray(message.content) ? message.content : [];
+  for (const chunk of content) {
+    const fromChunk =
+      chunk?.toolCallId ??
+      chunk?.tool_call_id ??
+      chunk?.id ??
+      chunk?.callId ??
+      chunk?.call_id;
+    const chunkType = String(chunk?.type ?? "");
+    if (
+      fromChunk &&
+      (chunkType.includes("tool-call") ||
+        chunkType.includes("tool_call") ||
+        chunkType === "function_call")
+    ) {
+      ids.push(String(fromChunk));
+    }
+  }
+
+  return ids;
+}
+
+function readToolResultId(message) {
+  if (!message || typeof message !== "object") {
+    return null;
+  }
+
+  const direct =
+    message.toolCallId ??
+    message.tool_call_id ??
+    message.callId ??
+    message.call_id;
+  if (direct) {
+    return String(direct);
+  }
+
+  const content = Array.isArray(message.content) ? message.content : [];
+  for (const chunk of content) {
+    const fromChunk =
+      chunk?.toolCallId ??
+      chunk?.tool_call_id ??
+      chunk?.callId ??
+      chunk?.call_id ??
+      chunk?.id;
+    const chunkType = String(chunk?.type ?? "");
+    if (
+      fromChunk &&
+      (chunkType.includes("tool-result") ||
+        chunkType.includes("tool_result") ||
+        chunkType === "function_call_output")
+    ) {
+      return String(fromChunk);
+    }
+  }
+
+  return null;
+}
+
 function ensureAgUiToolResultsForCopilot(messages) {
   if (!Array.isArray(messages)) {
     return messages;
   }
 
-  const withResult = new Set(
-    messages
-      .filter((m) => m?.role === "tool" && m.toolCallId)
-      .map((m) => m.toolCallId),
-  );
+  const withResult = new Set();
+  for (const msg of messages) {
+    if (msg?.role !== "tool") {
+      continue;
+    }
+    const id = readToolResultId(msg);
+    if (id) {
+      withResult.add(id);
+    }
+  }
 
   const out = [];
 
   for (const msg of messages) {
     out.push(msg);
 
-    if (msg?.role !== "assistant" || !msg.toolCalls?.length) {
+    if (msg?.role !== "assistant") {
       continue;
     }
 
-    for (const tc of msg.toolCalls) {
-      const id = tc?.id;
-
+    for (const id of collectAssistantToolCallIds(msg)) {
       if (!id || withResult.has(id)) {
         continue;
       }
@@ -311,13 +386,26 @@ const peecRuntimeTools = [
     description: "List read-only Peec MCP tools available to the dashboard.",
     parameters: z.object({}),
     execute: async () => {
-      const tools = await listPeecMcpTools();
-
-      return tools.map((tool) => ({
-        description: tool.description,
-        name: tool.name,
-        parameters: sanitizeSchema(tool.inputSchema),
-      }));
+      try {
+        const tools = await listPeecMcpTools();
+        return {
+          available: true,
+          tools: tools.map((tool) => ({
+            description: tool.description,
+            name: tool.name,
+            parameters: sanitizeSchema(tool.inputSchema),
+          })),
+        };
+      } catch (error) {
+        return {
+          available: false,
+          error:
+            error instanceof Error
+              ? error.message
+              : "Unknown Peec MCP load error.",
+          tools: [],
+        };
+      }
     },
   }),
   defineTool({
@@ -332,10 +420,20 @@ const peecRuntimeTools = [
       toolName: z.string().describe("The exact Peec MCP tool name."),
     }),
     execute: async ({ toolName, argsJson = "{}" }) => {
-      const args = JSON.parse(argsJson || "{}");
-      const result = await callPeecMcpTool(toolName, args);
-
-      return compactToolResult(result);
+      try {
+        const args = JSON.parse(argsJson || "{}");
+        const result = await callPeecMcpTool(toolName, args);
+        return compactToolResult(result);
+      } catch (error) {
+        return {
+          error:
+            error instanceof Error
+              ? error.message
+              : "Unknown Peec MCP tool call error.",
+          ok: false,
+          toolName,
+        };
+      }
     },
   }),
 ];
