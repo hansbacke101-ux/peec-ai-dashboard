@@ -1433,7 +1433,12 @@ function DashboardApp() {
 export default function App() {
   const pathname = window.location.pathname.replace(/\/$/, "");
 
-  if (pathname === "/bookmo-ai" || pathname === "/bookmoai") {
+  if (
+    pathname === "/bookmo-ai" ||
+    pathname === "/bookmoai" ||
+    pathname === "/alternatives/gigwell" ||
+    pathname === "/gigwell-alternative"
+  ) {
     return <BookmoAiLandingPage />;
   }
 

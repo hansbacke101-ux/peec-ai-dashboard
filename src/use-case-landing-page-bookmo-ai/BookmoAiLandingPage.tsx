@@ -1,524 +1,596 @@
-import {
-  useEffect,
-  useState,
-  type CSSProperties,
-  type ReactNode,
-} from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import "./bookmo-ai-landing.css";
 
-type QueueItem = {
-  color: string;
-  note: string;
-  status: string;
-  title: string;
+type IconProps = {
+  className?: string;
 };
 
-type FeatureStripProps = {
-  badge?: string;
-  children: ReactNode;
-  copy: ReactNode;
-  headline: string;
-  label: string;
-  reverse?: boolean;
-  tinted?: boolean;
-};
+const navLinks = [
+  { href: "#why-bookmo", label: "Why Bookmo" },
+  { href: "#comparison", label: "Compare" },
+  { href: "#migration", label: "Switch" },
+  { href: "#faq", label: "FAQ" },
+];
 
-const queueItems: QueueItem[] = [
+const featureCards = [
   {
-    color: "#efc200",
-    note: "Expires in 4h",
-    status: "Urgent",
-    title: "North Hall offer",
+    eyebrow: "CRM",
+    icon: UsersIcon,
+    title: "Keep buyers, venues, artists, and deal context together.",
+    copy:
+      "Bookmo gives booking teams a shared workspace for the relationships and moving parts behind every show, so context does not reset every season.",
   },
   {
-    color: "#ffb0cb",
-    note: "Artist approval",
-    status: "Action",
-    title: "Leipzig routing",
+    eyebrow: "Contracts",
+    icon: SignatureIcon,
+    title: "Move from agreement to signed booking with less admin.",
+    copy:
+      "Track booking admin around deals, contracts, documents, and follow-up from the same system your team uses to manage the opportunity.",
   },
   {
-    color: "#65d3ff",
-    note: "7d overdue",
-    status: "Overdue",
-    title: "Venue invoice",
+    eyebrow: "Advancing",
+    icon: PinIcon,
+    title: "Coordinate artist logistics before the show day panic.",
+    copy:
+      "Use booking-specific workflows for advancing, schedules, travel details, contacts, and artist-facing information instead of generic CRM fields.",
   },
   {
-    color: "#9a9ca7",
-    note: "Signed",
-    status: "Done",
-    title: "Hamburg contract",
+    eyebrow: "Follow-up",
+    icon: MailCheckIcon,
+    title: "Stay on top of inbox-driven booking work.",
+    copy:
+      "Bookmo is built around the reality that booking work often starts and continues in email, with follow-up and reminders tied back to real deals.",
   },
 ];
 
-const partnerLogos = [
-  "Berlin Senate",
-  "European Union",
-  "Avant Now",
-  "VDH",
-  "Selective Artists",
-  "Laut & Luise",
+const controlRoomItems = [
+  ["Offer follow-up", "Leipzig buyer needs a reply today", "#efc200"],
+  ["Contract status", "Festival agreement ready for review", "#65d3ff"],
+  ["Advancing", "Hotel and ground transport still open", "#ffb0cb"],
+  ["Artist logistics", "Next 48 hours synced to artist view", "#bde9ff"],
+] as const;
+
+const comparisonRows = [
+  [
+    "Gigwell",
+    "End-to-end booking management with EPKs, contacts, contracts, online payments, Tour IQ, ticket counts, and venue/talent-buyer workflows.",
+    "Teams that want a broad live-event booking suite across artists, agencies, venues, and talent buyers.",
+    "A full platform can be more than a boutique agency needs if the main gap is CRM discipline, follow-up, advancing, and internal booking workflow.",
+  ],
+  [
+    "Generic CRM",
+    "Flexible contact database, pipeline fields, notes, and reminders.",
+    "Sales teams or agencies ready to customize their own booking system.",
+    "Requires custom setup for shows, contracts, advancing, artist logistics, and booking-specific handoffs.",
+  ],
+  [
+    "Spreadsheets",
+    "Fast to start and easy for one person to edit.",
+    "Very small teams with simple rosters and low booking volume.",
+    "Hard to keep reliable once multiple agents, artists, offers, documents, and follow-ups are moving at once.",
+  ],
+  [
+    "Bookmo",
+    "Booking-focused CRM and AI-assisted workflow platform for deal follow-up, contracts, advancing, artist ops, and agency coordination.",
+    "Music booking agencies that want operational clarity without building a custom system from generic tools.",
+    "Best fit when your agency wants a focused operating layer rather than a broad venue database or ticket-count product.",
+  ],
+] as const;
+
+const gigwellSignals = [
+  "Gigwell positions itself as an end-to-end booking management platform for artists, agents, venues, and talent buyers.",
+  "Its public product pages emphasize EPKs, centralized contacts, contracts with e-signatures, online payments, Tour IQ venue intelligence, ticket counts, and revenue tracking.",
+  "That breadth is useful for teams that want a large booking suite, but it can be heavier than the operational CRM layer some agencies are looking for.",
+] as const;
+
+const alternativeReasons = [
+  [
+    "Focused booking CRM",
+    "Bookmo concentrates on the agency workspace: opportunities, buyers, artists, internal ownership, next steps, contract status, and advancing context.",
+  ],
+  [
+    "Built for follow-up discipline",
+    "Booking teams live in moving conversations. Bookmo is shaped around next actions, reminders, and deal context instead of treating booking like a generic sales pipeline.",
+  ],
+  [
+    "Artist operations in the workflow",
+    "Advancing, schedules, travel context, contacts, and artist-facing details sit close to the booking record so handoffs are easier to trust.",
+  ],
+  [
+    "AI-assisted agency work",
+    "Bookmo is designed as a modern workflow layer for agencies that want help summarizing context, spotting next steps, and operating with less spreadsheet cleanup.",
+  ],
+] as const;
+
+const migrationSteps = [
+  [
+    "Map the current booking workflow",
+    "List the places your team tracks buyers, artists, offers, contracts, advancing, documents, and follow-up today.",
+  ],
+  [
+    "Import and structure core relationships",
+    "Bring the buyer, venue, artist, and contact context into one workspace so agents can see the full booking history.",
+  ],
+  [
+    "Rebuild follow-up and advancing routines",
+    "Turn recurring booking admin into clear next actions tied to the deal or show instead of relying on memory and inbox search.",
+  ],
+  [
+    "Evaluate Bookmo against real bookings",
+    "Use active opportunities to compare whether the workflow feels clearer than your Gigwell, spreadsheet, or generic CRM setup.",
+  ],
+] as const;
+
+const workspaceCards = [
+  [
+    "Deal flow",
+    "Track opportunities, buyer context, next steps, and internal ownership while your team moves from first conversation to confirmed booking.",
+  ],
+  [
+    "Contract admin",
+    "Keep booking documents and contract status close to the deal so handoffs stay visible.",
+  ],
+  [
+    "Artist operations",
+    "Coordinate advancing, schedules, travel context, contacts, and artist-facing details around each show.",
+  ],
+] as const;
+
+const faqItems = [
+  {
+    question: "Is Bookmo a Gigwell alternative?",
+    answer:
+      "Bookmo can be evaluated as a Gigwell alternative for music booking agencies that mainly need a focused CRM and workflow layer for deal follow-up, contracts, advancing, and artist operations. Gigwell is broader and includes products such as EPKs, online payments, venue intelligence, ticket counts, and talent-buyer workflows.",
+  },
+  {
+    question: "What is the main difference between Bookmo and Gigwell?",
+    answer:
+      "Gigwell publicly positions itself as an end-to-end booking management platform across artists, agents, venues, and talent buyers. Bookmo is positioned as a focused CRM and AI-powered workflow platform for booking agencies that want clearer day-to-day operating context.",
+  },
+  {
+    question: "What is a music booking agency CRM?",
+    answer:
+      "A music booking agency CRM is a system for managing the relationships, deals, shows, contracts, tasks, and follow-up that booking agents handle for artists and venues.",
+  },
+  {
+    question: "Why do booking agencies need software beyond a generic CRM?",
+    answer:
+      "Booking agencies do more than store contacts. They coordinate artist availability, offers, show details, contracts, advancing, travel context, and buyer follow-up across many moving conversations.",
+  },
+  {
+    question: "Can Bookmo help with advancing and artist logistics?",
+    answer:
+      "Bookmo is designed for booking-agency workflows including artist logistics, advancing, event details, contacts, schedule context, and artist-facing operational information.",
+  },
 ];
 
-const outcomes = [
-  {
-    body:
-      "Automations send follow-ups from your own inbox, surface the next action, and keep opportunities warm without constant chasing.",
-    color: "#efc200",
-    label: "Automations keep deals moving.",
-    num: "01",
-    voice: "Why haven't they replied yet?",
-  },
-  {
-    body:
-      "Bookmo becomes the operating layer that ties inbox, CRM, contracts, advancing, and artist information together.",
-    color: "#65d3ff",
-    label: "Integrations keep everything connected.",
-    num: "02",
-    voice: "The details are scattered across five tools.",
-  },
-  {
-    body:
-      "AI agents handle the surrounding work around every deal so the team can spend more time on artists and buyers.",
-    color: "#ffb0cb",
-    label: "AI agents lighten the day-to-day.",
-    num: "03",
-    voice: "Half my day disappears before the real work starts.",
-  },
-];
-
-function ArrowIcon() {
+function ArrowIcon({ className }: IconProps) {
   return (
-    <svg aria-hidden="true" viewBox="0 0 24 24">
+    <svg aria-hidden="true" className={className} viewBox="0 0 24 24">
       <path d="M5 12h13m-5-5 5 5-5 5" />
     </svg>
   );
 }
 
-function CheckIcon() {
+function CheckIcon({ className }: IconProps) {
   return (
-    <svg aria-hidden="true" viewBox="0 0 24 24">
+    <svg aria-hidden="true" className={className} viewBox="0 0 24 24">
       <path d="m5 13 4 4L19 7" />
     </svg>
   );
 }
 
-function SparkIcon() {
+function ClipboardIcon({ className }: IconProps) {
   return (
-    <svg aria-hidden="true" viewBox="0 0 24 24">
+    <svg aria-hidden="true" className={className} viewBox="0 0 24 24">
+      <path d="M9 5h6" />
+      <path d="M9 3h6v4H9z" />
+      <path d="M6 5H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-1" />
+      <path d="M8 12h8M8 16h6" />
+    </svg>
+  );
+}
+
+function MailCheckIcon({ className }: IconProps) {
+  return (
+    <svg aria-hidden="true" className={className} viewBox="0 0 24 24">
+      <path d="M4 7h16v10H4z" />
+      <path d="m4 8 8 6 8-6" />
+      <path d="m15 19 2 2 4-5" />
+    </svg>
+  );
+}
+
+function PinIcon({ className }: IconProps) {
+  return (
+    <svg aria-hidden="true" className={className} viewBox="0 0 24 24">
+      <path d="M12 21s7-4.5 7-11a7 7 0 1 0-14 0c0 6.5 7 11 7 11Z" />
+      <circle cx="12" cy="10" r="2.5" />
+    </svg>
+  );
+}
+
+function SignatureIcon({ className }: IconProps) {
+  return (
+    <svg aria-hidden="true" className={className} viewBox="0 0 24 24">
+      <path d="M14 3h5v5" />
+      <path d="m10 13 9-9" />
+      <path d="M5 19c2.5-5 4.5-5 6 0 1-3 2.2-3.8 4-1.5 1.1 1.4 2.4 1.8 4 1.5" />
+    </svg>
+  );
+}
+
+function SparkIcon({ className }: IconProps) {
+  return (
+    <svg aria-hidden="true" className={className} viewBox="0 0 24 24">
       <path d="m12 3 1.9 5.4L19 10l-5.1 1.6L12 17l-1.9-5.4L5 10l5.1-1.6L12 3Z" />
       <path d="m19 15 .8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z" />
     </svg>
   );
 }
 
-function MailIcon() {
+function UsersIcon({ className }: IconProps) {
   return (
-    <svg aria-hidden="true" viewBox="0 0 24 24">
-      <path d="M4 7h16v10H4z" />
-      <path d="m4 8 8 6 8-6" />
+    <svg aria-hidden="true" className={className} viewBox="0 0 24 24">
+      <path d="M16 19c0-2.2-1.8-4-4-4H7c-2.2 0-4 1.8-4 4" />
+      <circle cx="9.5" cy="8" r="3" />
+      <path d="M21 19c0-2.2-1.8-4-4-4h-.5" />
+      <path d="M16 5.2a3 3 0 0 1 0 5.6" />
     </svg>
   );
 }
 
-function FeatureStrip({
-  badge,
-  children,
-  copy,
-  headline,
-  label,
-  reverse = false,
-  tinted = false,
-}: FeatureStripProps) {
-  return (
-    <section className={`bookmoFeatureStrip ${tinted ? "isTinted" : ""}`}>
-      <div className={`bookmoFeatureGrid ${reverse ? "isReverse" : ""}`}>
-        <div className="bookmoFeatureCopy">
-          <p className="bookmoKicker">{label}</p>
-          <div className="bookmoFeatureHeading">
-            <h2>{headline}</h2>
-            {badge ? <span>{badge}</span> : null}
-          </div>
-          <p>{copy}</p>
-        </div>
-        <div className="bookmoFeatureMock">{children}</div>
-      </div>
-    </section>
-  );
+function Kicker({ children }: { children: ReactNode }) {
+  return <p className="bookmoKicker">{children}</p>;
 }
 
-function PriorityQueueMock({ compact = false }: { compact?: boolean }) {
+function SectionHeading({
+  copy,
+  kicker,
+  title,
+}: {
+  copy: ReactNode;
+  kicker: string;
+  title: ReactNode;
+}) {
   return (
-    <div className={`bookmoQueueMock ${compact ? "isCompact" : ""}`}>
-      <div className="bookmoMockToolbar">
-        <div>
-          <strong>Priority queue</strong>
-          <span>Today</span>
-        </div>
-        <small>Search</small>
-      </div>
-      <div className="bookmoQueueHead">
-        <span>Task</span>
-        <span>Due</span>
-        <span>Status</span>
-      </div>
-      <div className="bookmoQueueRows">
-        {queueItems.map((item) => (
-          <div className="bookmoQueueRow" key={item.title}>
-            <div>
-              <i style={{ backgroundColor: item.color }} />
-              <strong>{item.title}</strong>
-            </div>
-            <span>{item.note}</span>
-            <em
-              style={{
-                backgroundColor: `${item.color}12`,
-                borderColor: `${item.color}40`,
-                color: item.color,
-              }}
-            >
-              {item.status}
-            </em>
-          </div>
-        ))}
-      </div>
+    <div className="bookmoSectionHeading">
+      <Kicker>{kicker}</Kicker>
+      <h2>{title}</h2>
+      <div>{copy}</div>
     </div>
   );
 }
 
-function PublicShell({ children }: { children: ReactNode }) {
-  const [signupOpen, setSignupOpen] = useState(false);
-
+function PublicShell({
+  children,
+  onSignup,
+}: {
+  children: ReactNode;
+  onSignup: () => void;
+}) {
   return (
     <div className="bookmoPublic">
+      <div aria-hidden="true" className="bookmoPageAura" />
       <header className="bookmoNav">
-        <a className="bookmoBrand" href="/bookmo-ai">
-          Bookmo
-        </a>
-        <nav aria-label="Bookmo sections">
-          <a href="#outcomes">Outcomes</a>
-          <a href="#features">Features</a>
-          <a href="#cta">Access</a>
-        </nav>
-        <button onClick={() => setSignupOpen(true)} type="button">
-          Request access
-        </button>
-      </header>
-      {children}
-      <footer className="bookmoFooter">
-        <div>
-          <p className="bookmoKicker">Bookmo for agencies</p>
-          <h2>Ready to upgrade your agency?</h2>
-          <button onClick={() => setSignupOpen(true)} type="button">
-            Request access
-            <ArrowIcon />
-          </button>
-        </div>
-        <p>Bookmo - CRM for music booking agencies</p>
-      </footer>
-      {signupOpen ? (
-        <div className="bookmoDialogBackdrop" role="presentation">
-          <section aria-label="Request access" className="bookmoDialog">
-            <button
-              aria-label="Close request access dialog"
-              onClick={() => setSignupOpen(false)}
-              type="button"
-            >
-              Close
+        <div className="bookmoNavInner">
+          <div className="bookmoNavLeft">
+            <a className="bookmoBrand" href="/alternatives/gigwell">
+              Bookmo
+            </a>
+            <nav aria-label="Bookmo page sections">
+              {navLinks.map((link) => (
+                <a href={link.href} key={link.href}>
+                  {link.label}
+                </a>
+              ))}
+            </nav>
+          </div>
+          <div className="bookmoNavRight">
+            <a href="/login">Login</a>
+            <button onClick={onSignup} type="button">
+              Request access
+              <ArrowIcon />
             </button>
-            <p className="bookmoKicker">Agency signup</p>
-            <h2>Request access to Bookmo</h2>
-            <p>
-              This local copy keeps the signup as a simple placeholder. The
-              real CRM project connects this moment to its waitlist flow.
-            </p>
-            <a href="mailto:hello@bookmo.ai">hello@bookmo.ai</a>
-          </section>
+          </div>
         </div>
-      ) : null}
+      </header>
+      <main>{children}</main>
+      <footer className="bookmoFooter">
+        <div className="bookmoFooterInner">
+          <div>
+            <a className="bookmoBrand" href="/alternatives/gigwell">
+              Bookmo
+            </a>
+            <p>
+              CRM and workflow software for music booking agencies, artists,
+              and the operating work around every show.
+            </p>
+          </div>
+          <nav aria-label="Bookmo footer links">
+            <a href="/bookmo-ai">Bookmo home</a>
+            <a href="/login">Login</a>
+            <a href="/privacy">Privacy</a>
+            <a href="/terms">Terms</a>
+          </nav>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+function RequestAccessDialog({
+  onClose,
+}: {
+  onClose: () => void;
+}) {
+  return (
+    <div className="bookmoDialogBackdrop" role="presentation">
+      <section aria-label="Request access" className="bookmoDialog">
+        <button
+          aria-label="Close request access dialog"
+          onClick={onClose}
+          type="button"
+        >
+          Close
+        </button>
+        <Kicker>Agency signup</Kicker>
+        <h2>Request access to Bookmo</h2>
+        <p>
+          Tell us what you use today and we will help you evaluate whether
+          Bookmo is a better fit for your booking workflow.
+        </p>
+        <a href="mailto:hello@bookmo.ai">hello@bookmo.ai</a>
+      </section>
     </div>
   );
 }
 
 export function BookmoAiLandingPage() {
+  const [signupOpen, setSignupOpen] = useState(false);
+
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "auto" });
   }, []);
 
   return (
-    <PublicShell>
-      <main>
-        <section className="bookmoHero">
-          <div className="bookmoAmbient" aria-hidden="true" />
-          <div className="bookmoHeroInner">
-            <div className="bookmoHeroCopy">
-              <div className="bookmoHeroBadge">
-                <span />
-                Early access - Spring 2026 cohort
-              </div>
-              <h1>
-                Close more bookings,
-                <br />
-                <span>with less chaos.</span>
-              </h1>
-              <p>
-                Bookmo keeps deals moving while you focus on your artists, not
-                your inbox.
-              </p>
-              <div className="bookmoHeroActions">
-                <a href="#cta">
-                  Request access
-                  <ArrowIcon />
-                </a>
-                <span>
-                  <CheckIcon />
-                  Limited spots - Onboarding included
-                </span>
-              </div>
+    <PublicShell onSignup={() => setSignupOpen(true)}>
+      <section className="bookmoHero">
+        <div aria-hidden="true" className="bookmoHeroAura" />
+        <div className="bookmoHeroGrid">
+          <div className="bookmoHeroCopy">
+            <div className="bookmoHeroBadge">
+              <span />
+              Gigwell alternative for music booking agencies
             </div>
-
-            <div className="bookmoHeroStack" aria-label="Bookmo workspace preview">
-              <div className="bookmoSparkChip">
-                <SparkIcon />
-                Assistant sent 4 follow-ups
-              </div>
-              <PriorityQueueMock compact />
-              <div className="bookmoEmailToast">
-                <div>
-                  <b>MR</b>
-                  <strong>Marco replied</strong>
-                  <span>just now</span>
-                </div>
-                <p>
-                  "Works for us. Send the contract and we'll get it signed
-                  today."
-                </p>
-                <small>
-                  <MailIcon />
-                  Re: Leipzig offer
-                </small>
-              </div>
-              <div className="bookmoSignedPill">
-                <CheckIcon />
-                <div>
-                  <strong>Contract signed</strong>
-                  <span>Conne Island - Apr 09</span>
-                </div>
-              </div>
+            <h1>
+              A focused Gigwell alternative for booking agency CRM and artist
+              operations.
+            </h1>
+            <p>
+              Bookmo is a CRM and AI-powered workflow platform for music
+              booking agencies that want clearer deal follow-up, contracts,
+              advancing, artist logistics, and booking operations without
+              stitching together spreadsheets or over-customized generic tools.
+            </p>
+            <div className="bookmoHeroActions">
+              <button onClick={() => setSignupOpen(true)} type="button">
+                Request access
+                <ArrowIcon />
+              </button>
+              <a href="#comparison">
+                Compare with Gigwell
+                <ArrowIcon />
+              </a>
             </div>
           </div>
-        </section>
 
-        <section className="bookmoLogoStrip" aria-label="Supported by">
-          <p>Supported by</p>
-          <div>
-            {[...partnerLogos, ...partnerLogos].map((logo, index) => (
-              <span key={`${logo}-${index}`}>{logo}</span>
-            ))}
-          </div>
-        </section>
-
-        <section className="bookmoIntro">
-          <p className="bookmoKicker">Introducing Bookmo</p>
-          <h2>
-            The first smart CRM
-            <br />
-            <span>for the music industry.</span>
-          </h2>
-          <p>
-            Purpose-built for booking agencies: every artist, deal, contract,
-            and venue in one place, with AI that handles the work around every
-            show.
-          </p>
-        </section>
-
-        <section className="bookmoOutcomes" id="outcomes">
-          {outcomes.map((outcome) => (
-            <article
-              key={outcome.num}
-              style={{ "--accent": outcome.color } as CSSProperties}
-            >
-              <span>{outcome.num} / 03</span>
-              <p>{outcome.voice}</p>
-              <h2>{outcome.label}</h2>
-              <p>{outcome.body}</p>
-            </article>
-          ))}
-        </section>
-
-        <div id="features" className="bookmoFeatures">
-          <FeatureStrip
-            label="Agency Dashboard"
-            headline="Know what needs action before your day starts."
-            copy="Every artist, deal, and deadline in one live view. No digging through emails to find what is about to fall through."
+          <aside
+            aria-label="Bookmo agency control room preview"
+            className="bookmoControlRoom"
           >
-            <PriorityQueueMock />
-          </FeatureStrip>
-
-          <FeatureStrip
-            label="Inbox-Native Reminders"
-            headline="More deals closed. Less time in your inbox."
-            copy={
-              <>
-                Buyers are more likely to reply when follow-ups go out quickly.
-                Bookmo sends them automatically from your own address.
-              </>
-            }
-            reverse
-            tinted
-          >
-            <div className="bookmoMailMock">
-              <div className="bookmoMockToolbar">
-                <div>
-                  <MailIcon />
-                  <strong>Sent</strong>
-                </div>
-                <span>Auto follow-up</span>
+            <div className="bookmoControlHeader">
+              <div>
+                <p>Booking workspace</p>
+                <h2>Agency control room</h2>
               </div>
-              <article>
-                <div>
-                  <b>NR</b>
+              <span>Live context</span>
+            </div>
+            <div className="bookmoControlRows">
+              {controlRoomItems.map(([title, detail, color]) => (
+                <article key={title}>
+                  <i style={{ backgroundColor: color }} />
                   <div>
-                    <strong>Nina Rosen</strong>
-                    <span>nina@agency.com -&gt; marco@northhall.de</span>
+                    <h3>{title}</h3>
+                    <p>{detail}</p>
                   </div>
-                  <small>2h ago</small>
-                </div>
-                <h3>Re: Leipzig offer - still interested?</h3>
-                <p>
-                  Hi Marco, just following up on the offer we sent Tuesday.
-                  Happy to hop on a quick call if that helps.
-                </p>
-              </article>
-              <footer>
-                <CheckIcon />
-                Buyer replied 6 hours later
-              </footer>
-            </div>
-          </FeatureStrip>
-
-          <FeatureStrip
-            label="Advancing"
-            headline="Every show advances cleanly, on your terms."
-            copy="Custom fields, templates, and tasklists built for real riders, not generic checklists."
-          >
-            <div className="bookmoAdvancingMock">
-              <header>
-                <b>PA</b>
-                <div>
-                  <strong>Pano - Festsaal Kreuzberg</strong>
-                  <span>Berlin - Apr 08 - 650 cap</span>
-                </div>
-                <small>2 / 4 done</small>
-              </header>
-              <div className="bookmoProgress">
-                <span />
-              </div>
-              <nav>
-                <span>Production</span>
-                <span>Travel</span>
-                <span>Hospitality</span>
-                <span>Settlement</span>
-              </nav>
-              {[
-                ["Stage plot uploaded", true, "Tour manager - 2d ago"],
-                ["Hospitality rider confirmed", true, "Venue - yesterday"],
-                ["Hotel accommodation", false, "Owed by venue"],
-                ["Ground transport locked", false, "Owed by tour manager"],
-              ].map(([label, done, owner]) => (
-                <div className="bookmoChecklistRow" key={String(label)}>
-                  <i className={done ? "isDone" : ""}>{done ? <CheckIcon /> : null}</i>
-                  <strong>{label}</strong>
-                  <span>{owner}</span>
-                </div>
+                  <CheckIcon />
+                </article>
               ))}
             </div>
-          </FeatureStrip>
+          </aside>
+        </div>
+      </section>
 
-          <FeatureStrip
-            label="Artist Mobile App"
-            headline="Artists who never have to ask twice."
-            copy="Schedule, travel, and contacts on their phone, updated automatically."
-            reverse
-            tinted
-          >
-            <div className="bookmoPhoneMock">
-              <div>
-                <span>9:41</span>
-                <i />
-              </div>
-              <section>
-                <header>
-                  <b>PA</b>
-                  <div>
-                    <span>Upcoming - Pano</span>
-                    <strong>Next 48 hours</strong>
-                  </div>
-                </header>
-                {[
-                  ["Tonight", "Festsaal Kreuzberg", "22:00", "Berlin - DE"],
-                  ["Tomorrow", "Train DE -> NL", "11:30", "Berlin Hbf"],
-                  ["Apr 13", "Skatecafe Amsterdam", "23:30", "Amsterdam - NL"],
-                ].map(([date, venue, time, sub]) => (
-                  <article key={date}>
-                    <div>
-                      <span>{date}</span>
-                      <strong>{time}</strong>
-                    </div>
-                    <h3>{venue}</h3>
-                    <p>{sub}</p>
-                  </article>
-                ))}
-              </section>
-            </div>
-          </FeatureStrip>
-
-          <FeatureStrip
-            label="Smart Agents"
-            headline="AI agents for the work around every deal."
-            copy="Bookmo handles the surrounding work so the people on your roster get more attention."
-            badge="Coming soon"
-          >
-            <div className="bookmoAgentMock">
-              <header>
-                <SparkIcon />
-                <div>
-                  <strong>Assistant</strong>
-                  <span>2 suggestions - just now</span>
+      <section className="bookmoSection bookmoTinted" id="why-bookmo">
+        <div className="bookmoContainer">
+          <SectionHeading
+            kicker="Why teams look for Gigwell alternatives"
+            title={
+              <>
+                Booking work is not just{" "}
+                <span className="bookmoGradientText">end-to-end software.</span>
+              </>
+            }
+            copy="A broad booking suite can be valuable, but many agencies are trying to solve a narrower operating problem: keeping deal context, buyer relationships, contracts, advancing, and next steps reliable across a fast-moving roster."
+          />
+          <div className="bookmoSignalCard">
+            <Kicker>What Gigwell is known for</Kicker>
+            <ul>
+              {gigwellSignals.map((signal) => (
+                <li key={signal}>{signal}</li>
+              ))}
+            </ul>
+          </div>
+          <div className="bookmoFeatureCards">
+            {featureCards.map(({ copy, eyebrow, icon: Icon, title }) => (
+              <article key={title}>
+                <div className="bookmoIconBox">
+                  <Icon />
                 </div>
-                <small>Live</small>
-              </header>
-              <article>
-                <SparkIcon />
-                <p>
-                  Leipzig buyer has not replied in 48h. Want me to send a
-                  follow-up from your inbox?
-                </p>
+                <p>{eyebrow}</p>
+                <h3>{title}</h3>
+                <span>{copy}</span>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="bookmoSection" id="comparison">
+        <div className="bookmoCompareGrid">
+          <div className="bookmoCompareCopy">
+            <Kicker>Gigwell vs Bookmo</Kicker>
+            <h2>Choose the workflow depth your agency actually needs.</h2>
+            <p>
+              Gigwell is a broad booking management platform. Bookmo is for
+              booking agencies that want a focused CRM and operational layer for
+              relationships, follow-up, contracts, advancing, and artist ops.
+              The right choice depends on whether you need a wide booking suite
+              or a simpler agency control room.
+            </p>
+          </div>
+          <div className="bookmoCompareTable bookmoCompareTableWide">
+            <div className="bookmoCompareHead">
+              <span>Option</span>
+              <span>Core strength</span>
+              <span>Best fit</span>
+              <span>Tradeoff</span>
+            </div>
+            {comparisonRows.map(([option, strength, bestFit, tradeoff]) => (
+              <div className="bookmoCompareRow" key={option}>
+                <strong>{option}</strong>
+                <span>{strength}</span>
+                <span>{bestFit}</span>
+                <span>{tradeoff}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="bookmoSection bookmoTinted">
+        <div className="bookmoContainer">
+          <SectionHeading
+            kicker="Why Bookmo instead"
+            title={
+              <>
+                A leaner operating layer for{" "}
+                <span className="bookmoGradientText">booking teams.</span>
+              </>
+            }
+            copy="Bookmo is not trying to be every live-event tool at once. It is designed to make the agency workflow easier to see, trust, and act on every day."
+          />
+          <div className="bookmoReasonGrid">
+            {alternativeReasons.map(([title, copy]) => (
+              <article key={title}>
+                <CheckIcon />
+                <h3>{title}</h3>
+                <p>{copy}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="bookmoSection" id="migration">
+        <div className="bookmoContainer">
+          <SectionHeading
+            kicker="Switching from Gigwell or spreadsheets"
+            title={
+              <>
+                Evaluate Bookmo with your{" "}
+                <span className="bookmoGradientText">real booking data.</span>
+              </>
+            }
+            copy="A strong migration does not start with a software checklist. It starts by making the current booking workflow visible, then moving the highest-friction routines into a system your team can actually maintain."
+          />
+          <div className="bookmoMigrationTimeline">
+            {migrationSteps.map(([title, copy], index) => (
+              <article key={title}>
+                <span>{String(index + 1).padStart(2, "0")}</span>
                 <div>
-                  <button type="button">Send follow-up</button>
-                  <button type="button">Remind later</button>
+                  <h3>{title}</h3>
+                  <p>{copy}</p>
                 </div>
               </article>
-            </div>
-          </FeatureStrip>
+            ))}
+          </div>
         </div>
+      </section>
 
-        <section className="bookmoFinalCta" id="cta">
-          <p className="bookmoKicker">Bookmo for agencies</p>
-          <h2>
-            Ready to upgrade
-            <br />
-            <span>your agency?</span>
-          </h2>
-          <p>
-            The agencies moving fastest are not working harder. They are
-            working in Bookmo.
-          </p>
-          <a href="mailto:hello@bookmo.ai">
+      <section className="bookmoSection bookmoTinted">
+        <div className="bookmoContainer">
+          <SectionHeading
+            kicker="What Bookmo helps manage"
+            title={
+              <>
+                One workspace for the jobs around{" "}
+                <span className="bookmoGradientText">every booking.</span>
+              </>
+            }
+            copy="Bookmo combines CRM structure with booking-specific workflow support, so the team can see what needs attention before a deal or show slips."
+          />
+          <div className="bookmoWorkspaceCards">
+            {workspaceCards.map(([title, copy]) => (
+              <article key={title}>
+                <ClipboardIcon />
+                <h3>{title}</h3>
+                <p>{copy}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="bookmoSection" id="faq">
+        <div className="bookmoFaqContainer">
+          <SectionHeading
+            kicker="FAQ"
+            title="Gigwell alternative questions"
+            copy="Short answers for agency teams comparing Gigwell, spreadsheets, generic CRMs, and a purpose-built booking workflow platform."
+          />
+          <div className="bookmoFaqList">
+            {faqItems.map(({ answer, question }) => (
+              <article key={question}>
+                <h3>{question}</h3>
+                <p>{answer}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="bookmoFinalCta" id="cta">
+        <div aria-hidden="true" className="bookmoCtaAura" />
+        <SparkIcon />
+        <h2>Ready to compare Bookmo with your current booking stack?</h2>
+        <p>
+          Request access and we will help you evaluate Bookmo against Gigwell,
+          spreadsheets, or the CRM setup your agency uses today.
+        </p>
+        <div>
+          <button onClick={() => setSignupOpen(true)} type="button">
             Request access
             <ArrowIcon />
-          </a>
-        </section>
-      </main>
+          </button>
+          <a href="/bookmo-ai">Back to Bookmo home</a>
+        </div>
+      </section>
+
+      {signupOpen ? (
+        <RequestAccessDialog onClose={() => setSignupOpen(false)} />
+      ) : null}
     </PublicShell>
   );
 }
