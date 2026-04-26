@@ -1160,6 +1160,39 @@ dd {
   display: none;
 }
 
+.copilotUserMessageRow {
+  align-items: flex-end;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin: 4px 0;
+  min-width: 0;
+}
+
+.copilotUserBubbleWrap {
+  display: flex;
+  justify-content: flex-end;
+  max-width: calc(100% - 46px);
+  min-width: 0;
+}
+
+.copilotUserBubbleWrap > * {
+  max-width: 100%;
+}
+
+.copilotUserAvatar {
+  background: #f2f5fb;
+  border: 1px solid #d8deea;
+  border-radius: 999px;
+  box-shadow: 0 8px 18px rgb(47 55 93 / 12%);
+  flex: 0 0 38px;
+  height: 38px;
+  object-fit: cover;
+  pointer-events: none;
+  user-select: none;
+  width: 38px;
+}
+
 .copilotAssistantWithTools {
   display: flex;
   flex-direction: column;

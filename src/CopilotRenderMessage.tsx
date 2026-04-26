@@ -12,6 +12,7 @@ import {
   type RenderMessageProps,
 } from "@copilotkit/react-ui";
 import { AssistantMessageNoControls } from "./AssistantMessageNoControls";
+import geodudeAvatarUrl from "./assets/geodude-avatar.svg";
 
 function CollapseIcon({ expanded }: { expanded: boolean }) {
   return (
@@ -346,13 +347,22 @@ export function CopilotRenderMessage({
   switch (message.role) {
     case "user":
       return (
-        <UserMessageComponent
-          data-message-role="user"
-          ImageRenderer={ImageRendererComponent}
-          key={index}
-          message={message}
-          rawData={message}
-        />
+        <div className="copilotUserMessageRow" key={index}>
+          <div className="copilotUserBubbleWrap">
+            <UserMessageComponent
+              data-message-role="user"
+              ImageRenderer={ImageRendererComponent}
+              message={message}
+              rawData={message}
+            />
+          </div>
+          <img
+            alt="Geodude user avatar"
+            className="copilotUserAvatar"
+            draggable="false"
+            src={geodudeAvatarUrl}
+          />
+        </div>
       );
     case "assistant": {
       const aiMessage = message as AIMessage;
