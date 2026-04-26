@@ -1,0 +1,4 @@
+interface:
+  display_name: "SEO GEO Strategy"
+  short_description: "Plan SEO and generative answer visibility improvements."
+  default_prompt: "Use $seo-geo-strategy to create an SEO and GEO improvement strategy for this site, prioritizing helpful content, topical authority, citations, expert evidence, and entity authority."
