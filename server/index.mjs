@@ -269,6 +269,115 @@ function collectExistingToolResultIds(messages) {
 }
 
 /**
+ * Copilot's `convertMessagesToVercelAISDKMessages` treats assistant
+ * `content` as a single string. If the client already sent Vercel
+ * `content: [{ type: "text" | "tool-call", ... }]` the converter
+ * mis-builds the prompt and `toolCalls` and tool results are lost, which
+ * leads to `AI_MissingToolResultsError` after conversion.
+ * Tool rows in Vercel form must be collapsed to AG-UI
+ * `toolCallId` + string `content` for the same converter to handle.
+ */
+function serializeToolResultOutputForAgUi(output) {
+  if (output == null) {
+    return "";
+  }
+  if (typeof output === "string") {
+    return output;
+  }
+  if (typeof output === "object" && output.type === "text" && "value" in output) {
+    return String(output.value);
+  }
+  if (typeof output === "object" && output.type === "json" && "value" in output) {
+    return JSON.stringify(output.value);
+  }
+  try {
+    return JSON.stringify(output);
+  } catch {
+    return String(output);
+  }
+}
+
+/**
+ * @returns {Record<string, unknown>[]} message list, possibly longer if a
+ * tool message had several `tool-result` parts
+ */
+function normalizeAgUiInputMessagesForConverter(messages) {
+  if (!Array.isArray(messages)) {
+    return messages;
+  }
+
+  const out = [];
+
+  for (const m of messages) {
+    if (m?.role === "tool" && Array.isArray(m.content)) {
+      const results = m.content.filter((p) => p?.type === "tool-result");
+      if (results.length > 0) {
+        for (const p of results) {
+          if (typeof p.toolCallId !== "string" || !p.toolCallId) {
+            continue;
+          }
+          out.push({
+            content: serializeToolResultOutputForAgUi(p.output),
+            role: "tool",
+            toolCallId: p.toolCallId,
+          });
+        }
+        continue;
+      }
+    }
+    if (m?.role === "assistant" && Array.isArray(m.content)) {
+      const textBuf = [];
+      const extra = [];
+      for (const part of m.content) {
+        if (part.type === "text" && part.text) {
+          textBuf.push(part.text);
+        } else if (part.type === "tool-call" && part.toolCallId) {
+          const input = part.input;
+          const argStr = typeof input === "string"
+            ? input
+            : (() => {
+                try {
+                  return JSON.stringify(input ?? {});
+                } catch {
+                  return "{}";
+                }
+              })();
+          extra.push({
+            function: {
+              arguments: argStr,
+              name: part.toolName ?? "clientTool",
+            },
+            id: part.toolCallId,
+            type: "function",
+          });
+        }
+      }
+      const legacy = Array.isArray(m.toolCalls) ? [...m.toolCalls] : [];
+      const have = new Set(
+        legacy
+          .map((t) => t.id ?? t.toolCallId)
+          .filter((id) => typeof id === "string"),
+      );
+      for (const c of extra) {
+        if (!have.has(c.id)) {
+          legacy.push(c);
+          have.add(c.id);
+        }
+      }
+      out.push({
+        ...m,
+        content: textBuf.join(""),
+        toolCalls: legacy,
+      });
+      continue;
+    }
+    out.push(m);
+  }
+
+  return out;
+}
+
+/**
  * @returns {{ id: string, input: unknown, toolName: string }[]}
  */
 function listAssistantToolCalls(assistantMessage) {
@@ -375,7 +484,9 @@ class DefaultAgentWithToolResultGuard extends BuiltInAgent {
       input && typeof input === "object"
         ? {
             ...input,
-            messages: ensureAgUiToolResultsForCopilot(input.messages),
+            messages: ensureAgUiToolResultsForCopilot(
+              normalizeAgUiInputMessagesForConverter(input.messages),
+            ),
           }
         : input;
 
