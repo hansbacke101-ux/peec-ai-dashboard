@@ -1,0 +1,4 @@
+interface:
+  display_name: "PEEC Content Opportunity Brief"
+  short_description: "Turn PEEC visibility gaps into concrete content briefs."
+  default_prompt: "Use $peec-content-opportunity-brief to create a content or page-refresh brief from PEEC metric gaps, prompt clusters, citations, and competitor evidence."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "PEEC Data Quality Check"
+  short_description: "Check whether PEEC data is complete enough for Hermes to act."
+  default_prompt: "Use $peec-data-quality-check to audit PEEC MCP, dashboard, project, metric, prompt, citation, competitor, and action-log data readiness before acting."

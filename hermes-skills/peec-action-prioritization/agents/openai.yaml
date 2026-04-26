@@ -1,0 +1,4 @@
+interface:
+  display_name: "PEEC Action Prioritization"
+  short_description: "Rank the PEEC-driven actions Hermes should take next."
+  default_prompt: "Use $peec-action-prioritization to turn PEEC dashboard and MCP findings into a ranked backlog tied to visibility, share of voice, sentiment, position, citations, prompts, and competitors."

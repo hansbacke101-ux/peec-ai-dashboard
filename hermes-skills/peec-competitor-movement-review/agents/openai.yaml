@@ -1,0 +1,4 @@
+interface:
+  display_name: "PEEC Competitor Movement Review"
+  short_description: "Find competitor gains, losses, displacement, and response actions."
+  default_prompt: "Use $peec-competitor-movement-review to explain competitor movement in PEEC metrics and recommend responses tied to prompts, citations, pages, and categories."

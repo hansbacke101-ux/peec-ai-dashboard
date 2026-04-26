@@ -2,6 +2,9 @@
 
 Repo-local Hermes skills for acting on PEEC AI dashboard and MCP data.
 
+See [references/peec-mcp-tool-contract.md](references/peec-mcp-tool-contract.md)
+for the live PEEC MCP tool inventory and action workflow.
+
 ## Available Skills
 
 - `$seo-geo-strategy`: broad SEO/GEO strategy for search and AI answer
@@ -27,6 +30,6 @@ The dashboard baseline metrics are:
 - `position`: average answer placement; lower is better.
 
 Hermes should prefer PEEC MCP read tools for granular data such as prompts,
-citations, cited URLs, tags, competitors, action items, and activity logs. When
-MCP is unavailable, use the dashboard's brand report API as the minimum
+citations, cited URLs, tags, competitors, actions, and project profile data.
+When MCP is unavailable, use the dashboard's brand report API as the minimum
 baseline and call out missing evidence.
