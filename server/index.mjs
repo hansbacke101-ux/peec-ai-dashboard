@@ -241,120 +241,132 @@ function createCopilotLanguageModel() {
   return provider.chat(aiModel);
 }
 
-function walk(value, visit) {
-  if (!value || typeof value !== "object") {
-    return;
-  }
+/**
+ * The Vercel AI SDK only treats a tool result as present when
+ * `role: "tool"` messages use `content: [{ type: "tool-result", ... }]`
+ * (see `convertToLanguageModelPrompt` in `ai` package). A string
+ * `content` or a bare `toolCallId` on the message does not clear
+ * pending tool calls.
+ */
+function collectExistingToolResultIds(messages) {
+  const withResult = new Set();
 
-  visit(value);
-
-  if (Array.isArray(value)) {
-    for (const row of value) {
-      walk(row, visit);
+  for (const m of messages) {
+    if (m?.role === "tool" && Array.isArray(m.content)) {
+      for (const part of m.content) {
+        if (part?.type === "tool-result" && part.toolCallId) {
+          withResult.add(part.toolCallId);
+        }
+      }
     }
-    return;
   }
 
-  for (const row of Object.values(value)) {
-    walk(row, visit);
-  }
+  return withResult;
 }
 
-function normalizeType(type) {
-  return typeof type === "string"
-    ? type.toLowerCase().replace(/[_\s]/g, "-")
-    : "";
-}
-
-function collectAssistantToolCallIds(message) {
-  if (!message || message.role !== "assistant") {
+/**
+ * @returns {{ id: string, input: unknown, toolName: string }[]}
+ */
+function listAssistantToolCalls(assistantMessage) {
+  if (assistantMessage?.role !== "assistant") {
     return [];
   }
 
-  const ids = new Set();
-  walk(message, (node) => {
-    const type = normalizeType(node?.type);
-    const looksLikeToolCall =
-      type === "tool-call" ||
-      type === "function-call" ||
-      Array.isArray(node?.toolCalls);
-    const id =
-      node?.id ??
-      node?.toolCallId ??
-      node?.tool_call_id;
-    if (looksLikeToolCall && typeof id === "string" && id) {
-      ids.add(id);
-    }
-    if (
-      typeof node?.toolCallId === "string" &&
-      normalizeType(node?.role) === "assistant"
-    ) {
-      ids.add(node.toolCallId);
-    }
-  });
-  return [...ids];
-}
+  const out = [];
+  const byId = new Set();
 
-function collectToolResultIds(message) {
-  const role = normalizeType(message?.role);
-  const ids = new Set();
-  walk(message, (node) => {
-    const type = normalizeType(node?.type);
-    const id = node?.toolCallId ?? node?.tool_call_id;
-    const isToolResultShape =
-      role === "tool" ||
-      type === "tool-result" ||
-      type === "function-call-output";
-    if (isToolResultShape && typeof id === "string" && id) {
-      ids.add(id);
+  const content = assistantMessage.content;
+  if (Array.isArray(content)) {
+    for (const part of content) {
+      if (part?.type === "tool-call" && part.toolCallId) {
+        if (part.providerExecuted) {
+          continue;
+        }
+        byId.add(part.toolCallId);
+        out.push({
+          id: part.toolCallId,
+          input: part.input,
+          toolName: part.toolName ?? "clientTool",
+        });
+      }
     }
-  });
-  return [...ids];
+  }
+
+  const legacy = assistantMessage.toolCalls;
+  if (Array.isArray(legacy)) {
+    for (const tc of legacy) {
+      const id = tc.id ?? tc.toolCallId;
+      if (typeof id !== "string" || !id || byId.has(id)) {
+        continue;
+      }
+      byId.add(id);
+      const toolName = tc.function?.name ?? "clientTool";
+      let input = {};
+      try {
+        input = JSON.parse(tc.function?.arguments || "{}");
+      } catch {
+        input = {};
+      }
+      out.push({ id, input, toolName });
+    }
+  }
+
+  return out;
 }
 
 /**
  * When the client runs CopilotKit frontend tools, the next HTTP request can
- * include assistant toolCalls without matching `role: "tool"` rows yet.
- * `streamText` then throws AI_MissingToolResultsError. Add minimal placeholders
- * so every toolCallId has a result before the agent runs.
+ * include assistant tool-calls without matching `tool-result` content parts.
+ * `streamText` / `convertToLanguageModelPrompt` then throws
+ * `AI_MissingToolResultsError`. Insert minimal valid tool messages so the run
+ * can continue.
  */
 function ensureAgUiToolResultsForCopilot(messages) {
   if (!Array.isArray(messages)) {
     return messages;
   }
 
-  const withResult = new Set(messages.flatMap((m) => collectToolResultIds(m)));
-
+  const withResult = collectExistingToolResultIds(messages);
   const out = [];
   const injected = [];
 
   for (const msg of messages) {
     out.push(msg);
 
-    for (const id of collectAssistantToolCallIds(msg)) {
-
+    for (const call of listAssistantToolCalls(msg)) {
+      const { id, input, toolName } = call;
       if (!id || withResult.has(id)) {
         continue;
       }
-
       withResult.add(id);
       injected.push(id);
       out.push({
-        content: JSON.stringify({
-          message:
-            "Client tool result was not on the server message list; " +
-            "placeholder so the run can continue.",
-          ok: true,
-        }),
+        content: [
+          {
+            output: {
+              type: "json",
+              value: {
+                input,
+                message:
+                  "Client tool result was not in server history; " +
+                  "synthetic result so the agent run can continue.",
+                ok: true,
+                placeholder: true,
+              },
+            },
+            toolCallId: id,
+            type: "tool-result",
+            toolName,
+          },
+        ],
         role: "tool",
-        toolCallId: id,
       });
     }
   }
 
   if (injected.length > 0) {
     console.warn(
-      "CopilotKit tool-result guard injected placeholder results:",
+      "CopilotKit tool-result guard injected ModelMessage tool results:",
       injected,
     );
   }
