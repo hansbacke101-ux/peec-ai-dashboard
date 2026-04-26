@@ -11,6 +11,7 @@ import {
   useCopilotReadable,
   useFrontendTool,
 } from "@copilotkit/react-core";
+import { BookmoAiLandingPage } from "./BookmoAiLandingPage";
 import Chatbot from "./Chatbot";
 import { ChatPieChart } from "./ChatPieChart";
 import { CopilotLineChart } from "./CopilotLineChart";
@@ -583,7 +584,7 @@ function ComparisonPage({
   );
 }
 
-export default function App() {
+function DashboardApp() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [activeCompanyKey, setActiveCompanyKey] = useState("overview");
@@ -1427,4 +1428,14 @@ export default function App() {
       <Chatbot />
     </div>
   );
+}
+
+export default function App() {
+  const pathname = window.location.pathname.replace(/\/$/, "");
+
+  if (pathname === "/bookmo-ai" || pathname === "/bookmoai") {
+    return <BookmoAiLandingPage />;
+  }
+
+  return <DashboardApp />;
 }
