@@ -1,0 +1,4 @@
+interface:
+  display_name: "PEEC Weekly Assessment"
+  short_description: "Explain week-over-week PEEC metric movement and next actions."
+  default_prompt: "Use $peec-weekly-assessment to compare this week against the previous week, explain visibility, share of voice, sentiment, position, prompt/citation movement where available, and recommend the next actions."
